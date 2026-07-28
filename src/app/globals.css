@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Paleta "Brasa noturna" Premium ── */
+  --color-noite: #050505;
+  --color-noite-2: #0a0a0a;
+  --color-brasa: #ff3c00;
+  --color-brasa-2: #ff7300;
+  --color-lona: #ffb800;
+  --color-letrista: #0077ff;
+  --color-papel: #fbfbfb;
+  --color-fumaca: #707070;
+
+  /* ── Painel admin ── */
+  --color-admin-bg: #fafafa;
+  --color-admin-texto: #111111;
+  --color-admin-borda: #eaeaea;
+  --color-admin-verde: #16a34a;
+  --color-admin-ambar: #d97706;
+  --color-admin-verde-bg: #f0fdf4;
+  --color-admin-ambar-bg: #fffbeb;
+
+  /* ── Tipografia ── */
+  --font-display: var(--font-anton);
+  --font-corpo: var(--font-inter);
+  --font-mono-preco: var(--font-space-mono);
+  --font-marcador: var(--font-permanent-marker);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: initial; /* Lenis assume no site público; admin usa o padrão nativo */
+  scroll-padding-top: 5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body {
+  font-family: var(--font-corpo), system-ui, sans-serif;
+  /* sem cor de fundo aqui de propósito: site e admin têm temas opostos
+     (.tema-site / .tema-admin) e não podem herdar um do outro por um
+     estilo compartilhado no body. Cada tema pinta o próprio fundo. */
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Tema do site público — Premium Dark Mode ── */
+.tema-site {
+  background-color: var(--color-noite);
+  color: var(--color-papel);
+}
+
+.preco {
+  font-family: var(--font-mono-preco), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.05em;
+}
+
+.titulo-display {
+  font-family: var(--font-display), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+}
+
+/* texto em brasa — modern neon glow */
+.texto-brasa {
+  color: var(--color-papel);
+  background: linear-gradient(to right, var(--color-brasa-2), var(--color-brasa));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 40px color-mix(in srgb, var(--color-brasa) 60%, transparent));
+}
+
+/* palavra "marcador" — tag de spray/caneta sobreposta ao título, camada
+   de tipografia inspirada em referências editoriais, adaptada pro clima
+   underground/trailer (marker em vez de script elegante) */
+.texto-marcador {
+  font-family: var(--font-marcador), cursive;
+  color: var(--color-lona);
+  text-transform: none;
+  letter-spacing: 0;
+  display: inline-block;
+  transform: rotate(-6deg);
+  filter: drop-shadow(0 2px 12px color-mix(in srgb, var(--color-lona) 50%, transparent));
+}
+
+/* Background Scene - Ultra premium grid & mesh gradient */
+.fundo-cena {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--color-noite);
+}
+.fundo-cena::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, color-mix(in srgb, var(--color-brasa) 15%, transparent), transparent),
+    radial-gradient(ellipse 60% 50% at 90% 20%, color-mix(in srgb, var(--color-lona) 8%, transparent), transparent);
+  pointer-events: none;
+}
+.fundo-cena::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-papel) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-papel) 3%, transparent) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(circle 800px at 50% 0%, black, transparent);
+  pointer-events: none;
+}
+
+/* Premium Glassmorphism */
+.vidro {
+  background: color-mix(in srgb, var(--color-noite-2) 40%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid color-mix(in srgb, var(--color-papel) 6%, transparent);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.borda-fina {
+  border: 1px solid color-mix(in srgb, var(--color-papel) 8%, transparent);
+}
+
+/* Marquee Animations */
+.marquee-trilho {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
+}
+.marquee-viewport:hover .marquee-trilho {
+  animation-play-state: paused;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* ── Painel admin ── */
+.tema-admin {
+  background-color: var(--color-admin-bg);
+  color: var(--color-admin-texto);
+}
+
+/* Card base reutilizável do painel — cantos arredondados e sombra suave
+   em vez da caixa com borda quadrada usada antes, pra parecer mais app
+   de celular do que formulário de intranet. */
+.card-admin {
+  background: #fff;
+  border: 1px solid var(--color-admin-borda);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 14px rgba(0,0,0,0.05);
+}
+
+.alvo-toque {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brasa);
+  outline-offset: 4px;
+}
+
+/* Utilities for animations */
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-papel) 0%, var(--color-fumaca) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
