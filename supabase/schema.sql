@@ -168,10 +168,23 @@ create table xnorte.turnos (
 -- garante no máximo um turno aberto por vez
 create unique index turno_aberto_unico on xnorte.turnos ((fechado_em is null)) where fechado_em is null;
 
+-- Identificação simples do cliente pelo telefone, sem senha/login. Ver
+-- seção "fidelidade" mais abaixo para pedidos_validos/premios_resgatados.
+create table xnorte.clientes (
+  id                 uuid primary key default gen_random_uuid(),
+  telefone           text not null unique,   -- normalizado: só dígitos
+  nome               text,
+  pedidos_validos    int not null default 0,
+  premios_resgatados int not null default 0,
+  criado_em          timestamptz not null default now(),
+  atualizado_em      timestamptz not null default now()
+);
+
 create table xnorte.pedidos (
   id               uuid primary key default gen_random_uuid(),
   codigo           text not null unique,          -- sequencial curto do dia: "042"
   turno_id         uuid references xnorte.turnos(id),
+  cliente_id       uuid references xnorte.clientes(id),
   canal            text not null check (canal in ('balcao','whatsapp','site')),
   tipo             text not null default 'retirada' check (tipo in ('retirada','entrega')),
   cliente_nome     text,
@@ -213,6 +226,8 @@ create trigger trg_carnes_atualizado before update on xnorte.carnes
 create trigger trg_molhos_atualizado before update on xnorte.molhos
   for each row execute function xnorte.set_atualizado_em();
 create trigger trg_excecao_atualizado before update on xnorte.precos_excecao
+  for each row execute function xnorte.set_atualizado_em();
+create trigger trg_clientes_atualizado before update on xnorte.clientes
   for each row execute function xnorte.set_atualizado_em();
 
 -- ── Código sequencial do pedido (por dia) ───────────────
@@ -263,6 +278,73 @@ returns numeric language sql stable set search_path = xnorte, public as $$
   );
 $$;
 
+-- ── Fidelidade ───────────────────────────────────────────
+-- "A cada 10 pedidos válidos (qualquer canal), 1 prêmio." Prêmios
+-- disponíveis = floor(pedidos_validos / 10) - premios_resgatados,
+-- calculado sob demanda em vez de guardado, pra nunca dessincronizar.
+
+-- Upsert por telefone + soma 1 pedido válido. Retorna o id do cliente,
+-- ou null se nenhum telefone foi informado (pedido sem identificação).
+create or replace function xnorte.registrar_pedido_cliente(p_telefone text, p_nome text default null)
+returns uuid language plpgsql set search_path = xnorte, public as $$
+declare
+  v_id uuid;
+begin
+  if p_telefone is null or p_telefone = '' then
+    return null;
+  end if;
+
+  insert into xnorte.clientes (telefone, nome, pedidos_validos)
+  values (p_telefone, nullif(trim(p_nome), ''), 1)
+  on conflict (telefone) do update
+    set pedidos_validos = xnorte.clientes.pedidos_validos + 1,
+        nome = coalesce(nullif(trim(excluded.nome), ''), xnorte.clientes.nome)
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+-- Chamada quando um pedido que já tinha somado é cancelado, pra não
+-- contar pedido cancelado na fidelidade. Nunca deixa ir abaixo de zero.
+create or replace function xnorte.desfazer_pedido_cliente(p_cliente_id uuid)
+returns void language plpgsql set search_path = xnorte, public as $$
+begin
+  if p_cliente_id is null then
+    return;
+  end if;
+  update xnorte.clientes
+     set pedidos_validos = greatest(pedidos_validos - 1, 0)
+   where id = p_cliente_id;
+end;
+$$;
+
+-- Marca 1 prêmio como usado, só se houver prêmio disponível de verdade
+-- (recalculado na hora, não confia em nenhum contador solto). Retorna
+-- true se resgatou, false se não havia prêmio disponível.
+create or replace function xnorte.resgatar_premio_fidelidade(p_cliente_id uuid)
+returns boolean language plpgsql set search_path = xnorte, public as $$
+declare
+  v_validos int;
+  v_resgatados int;
+begin
+  select pedidos_validos, premios_resgatados into v_validos, v_resgatados
+    from xnorte.clientes where id = p_cliente_id
+    for update;
+
+  if v_validos is null then
+    return false;
+  end if;
+
+  if (v_validos / 10) - v_resgatados <= 0 then
+    return false;
+  end if;
+
+  update xnorte.clientes set premios_resgatados = premios_resgatados + 1 where id = p_cliente_id;
+  return true;
+end;
+$$;
+
 -- ── Grants ───────────────────────────────────────────────
 -- Schema novo != schema `public`: os papéis que a API do Supabase usa
 -- (anon, authenticated, service_role) só têm acesso automático a
@@ -297,6 +379,7 @@ alter table xnorte.turnos          enable row level security;
 alter table xnorte.pedidos         enable row level security;
 alter table xnorte.pedido_itens    enable row level security;
 alter table xnorte.admins          enable row level security;
+alter table xnorte.clientes        enable row level security;
 
 -- catálogo: leitura pública só do que está ativo; admin vê tudo e escreve
 create policy paes_leitura_publica on xnorte.paes for select
@@ -370,6 +453,18 @@ create policy pedido_itens_insert_admin on xnorte.pedido_itens for insert
 -- admins: cada admin só enxerga a própria linha
 create policy admins_leitura_propria on xnorte.admins for select
   to authenticated using (id = auth.uid());
+
+-- clientes: sem policy de leitura pra anon de propósito, igual
+-- pedidos/pedido_itens — não dá pra "provar" via RLS que quem está
+-- perguntando é dono do telefone, então a única leitura pública passa
+-- pelo service role dentro de uma server action (buscarHistoricoPorTelefone),
+-- nunca direto do browser com a chave anon.
+create policy clientes_leitura_admin on xnorte.clientes for select
+  to authenticated using (xnorte.is_admin());
+create policy clientes_insert_admin on xnorte.clientes for insert
+  to authenticated with check (xnorte.is_admin());
+create policy clientes_update_admin on xnorte.clientes for update
+  to authenticated using (xnorte.is_admin()) with check (xnorte.is_admin());
 
 -- ── Storage — fotos do cardápio ─────────────────────────
 -- Bucket com nome prefixado (xnorte-cardapio) pra não colidir com um

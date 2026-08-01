@@ -6,6 +6,7 @@ import HeroSaudacao from "@/components/admin/HeroSaudacao";
 import StatCard from "@/components/admin/StatCard";
 import TurnoControl from "@/components/admin/TurnoControl";
 import DisponibilidadeToggle from "@/components/admin/DisponibilidadeToggle";
+import AvisoNovoPedido from "@/components/admin/AvisoNovoPedido";
 
 export default async function HojePage() {
   const [admin, cardapio, turno, pedidos] = await Promise.all([
@@ -28,6 +29,7 @@ export default async function HojePage() {
 
   return (
     <div className="space-y-6">
+      <AvisoNovoPedido total={pedidosValidos.length} />
       <HeroSaudacao nome={admin?.nome ?? "por aqui"} abertos={abertos} prontos={prontos} />
 
       <div className="grid grid-cols-2 gap-4">

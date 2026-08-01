@@ -53,6 +53,21 @@ os demais.
    POST para `https://<domínio>/api/revalidate`, header
    `x-revalidate-secret: <mesmo valor de REVALIDATE_SECRET>`.
 
+## Migrações
+
+`supabase/schema.sql` é destrutivo (dropa e recria o schema `xnorte`
+inteiro) — só serve pra instalação nova, do zero. **Depois que o app
+estiver em produção com pedidos reais, mudanças de banco vão em
+`supabase/migracoes/`**, scripts aditivos e idempotentes (`create table
+if not exists`, `create or replace function`) que podem ser colados no
+SQL Editor sem apagar nada. Rodar em ordem, uma vez cada:
+
+- `001_clientes_fidelidade.sql` — tabela `xnorte.clientes` (identificação
+  por telefone, sem senha) e o programa "a cada 10 pedidos, 1 prêmio".
+  Pedido do site e do balcão agora pedem telefone e ligam ao cliente
+  automaticamente; view rápida do histórico e "repetir pedido" aparecem
+  no site quando o telefone já tem pedido registrado.
+
 ## Pendente com o cliente (brief seção 11)
 
 Preços de pães/carnes/molhos e o WhatsApp já foram confirmados com o

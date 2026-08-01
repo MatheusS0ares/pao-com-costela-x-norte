@@ -15,6 +15,8 @@ export default function NovoPedidoForm({ cardapio }: { cardapio: Cardapio }) {
   const [molhosSelecionados, setMolhosSelecionados] = useState<Molho[]>([]);
   const [quantidade, setQuantidade] = useState(1);
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>("dinheiro");
+  const [clienteNome, setClienteNome] = useState("");
+  const [clienteTelefone, setClienteTelefone] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [naFila, setNaFila] = useState(0);
@@ -44,6 +46,8 @@ export default function NovoPedidoForm({ cardapio }: { cardapio: Cardapio }) {
     setMolhosSelecionados([]);
     setQuantidade(1);
     setFormaPagamento("dinheiro");
+    setClienteNome("");
+    setClienteTelefone("");
   }
 
   function alternarMolho(m: Molho) {
@@ -69,7 +73,12 @@ export default function NovoPedidoForm({ cardapio }: { cardapio: Cardapio }) {
       precoUnitario: precoAtual,
     };
 
-    const payload: ParametrosPedidoBalcao = { itens: [item], formaPagamento };
+    const payload: ParametrosPedidoBalcao = {
+      itens: [item],
+      formaPagamento,
+      clienteNome: clienteNome.trim() || undefined,
+      clienteTelefone: clienteTelefone.trim() || undefined,
+    };
     const resultado = await salvarComFallbackOffline(payload, criarPedidoBalcao);
 
     setMensagem(resultado.offline ? "Sem sinal — pedido guardado, será enviado sozinho." : "Pedido registrado.");
@@ -170,6 +179,24 @@ export default function NovoPedidoForm({ cardapio }: { cardapio: Cardapio }) {
               <span className="text-xl w-6 text-center">{quantidade}</span>
               <button type="button" onClick={() => setQuantidade((q) => q + 1)} className="alvo-toque bg-admin-borda rounded-full font-bold text-xl px-4">+</button>
             </div>
+          </div>
+
+          <div className="card-admin p-4 space-y-2">
+            <p className="text-sm font-bold uppercase text-admin-texto/60">Cliente (opcional)</p>
+            <p className="text-xs text-admin-texto/50 -mt-1">Telefone conta pra fidelidade — a cada 10 pedidos, 1 prêmio.</p>
+            <input
+              placeholder="Nome"
+              value={clienteNome}
+              onChange={(e) => setClienteNome(e.target.value)}
+              className="alvo-toque w-full border-2 border-admin-borda rounded-xl px-3 text-sm"
+            />
+            <input
+              placeholder="Telefone (com DDD)"
+              inputMode="tel"
+              value={clienteTelefone}
+              onChange={(e) => setClienteTelefone(e.target.value)}
+              className="alvo-toque w-full border-2 border-admin-borda rounded-xl px-3 text-sm"
+            />
           </div>
 
           <div className="card-admin p-4">

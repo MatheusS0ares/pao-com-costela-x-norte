@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, ArrowRight, Check, CheckCircle2 } from "lucide-react";
-import type { Cardapio, Carne, ItemCarrinho, Molho, Pao, TipoPedido } from "@/lib/types";
+import { ShoppingBag, ArrowRight, Check, CheckCircle2, PartyPopper } from "lucide-react";
+import type { Cardapio, Carne, FormaPagamento, ItemCarrinho, Molho, Pao, TipoPedido } from "@/lib/types";
 import { resolverPreco, formatarPreco } from "@/lib/price";
 import { montarMensagemPedido, linkWhatsApp } from "@/lib/whatsapp";
 import { criarPedidoSite } from "@/lib/actions/pedidos";
+import { buscarHistoricoPorTelefone, type HistoricoCliente } from "@/lib/actions/clientes";
+import { normalizarTelefone, telefoneValido } from "@/lib/telefone";
+import { premiosDisponiveis, faltamParaPremio } from "@/lib/fidelidade";
 import { siteConfig } from "@/lib/site-config";
 
 type Passo = 1 | 2 | 3 | 4;
@@ -22,11 +25,18 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
 
   const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [tipo, setTipo] = useState<TipoPedido>("retirada");
   const [endereco, setEndereco] = useState("");
+  const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>("dinheiro");
   const [observacaoPedido, setObservacaoPedido] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  const [telefoneBusca, setTelefoneBusca] = useState("");
+  const [buscando, setBuscando] = useState(false);
+  const [buscaFeita, setBuscaFeita] = useState(false);
+  const [historico, setHistorico] = useState<HistoricoCliente | null>(null);
 
   const precoAtual = useMemo(() => {
     if (!pao || !carne) return null;
@@ -102,6 +112,12 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
 
   const subtotal = carrinho.reduce((s, i) => s + i.precoUnitario * i.quantidade, 0);
 
+  const podeEnviar =
+    carrinho.length > 0 &&
+    nome.trim().length > 0 &&
+    telefoneValido(telefone) &&
+    (tipo !== "entrega" || endereco.trim().length > 0);
+
   function linkFallback() {
     return linkWhatsApp(
       siteConfig.telefoneWhatsApp,
@@ -110,7 +126,7 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
   }
 
   async function enviarPedido() {
-    if (carrinho.length === 0 || !nome.trim()) return;
+    if (!podeEnviar) return;
     setEnviando(true);
     setErro(null);
     try {
@@ -118,6 +134,8 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
         itens: carrinho,
         tipo,
         clienteNome: nome,
+        clienteTelefone: telefone,
+        formaPagamento,
         endereco: tipo === "entrega" ? endereco : undefined,
         observacao: observacaoPedido,
       });
@@ -129,6 +147,51 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
     }
   }
 
+  async function buscarHistorico() {
+    if (!telefoneValido(telefoneBusca)) return;
+    setBuscando(true);
+    setHistorico(null);
+    setBuscaFeita(false);
+    try {
+      const resultado = await buscarHistoricoPorTelefone(telefoneBusca);
+      setHistorico(resultado);
+      if (resultado) {
+        setTelefone(normalizarTelefone(telefoneBusca));
+        if (resultado.nome) setNome(resultado.nome);
+      }
+    } finally {
+      setBuscando(false);
+      setBuscaFeita(true);
+    }
+  }
+
+  function repetirPedido(pedidoAntigo: HistoricoCliente["pedidos"][number]) {
+    const novosItens: ItemCarrinho[] = [];
+    for (const item of pedidoAntigo.pedido_itens) {
+      const paoItem = cardapio.paes.find((p) => p.nome === item.pao_nome && p.disponivel);
+      const carneItem = cardapio.carnes.find((c) => c.nome === item.carne_nome && c.disponivel);
+      if (!paoItem || !carneItem) continue;
+      const precoAtualizado = resolverPreco(cardapio, paoItem.id, carneItem.id);
+      if (precoAtualizado === null) continue;
+      const molhosItem = (item.molhos_nomes ?? [])
+        .map((nomeMolho) => cardapio.molhos.find((m) => m.nome === nomeMolho && m.disponivel))
+        .filter((m): m is Molho => Boolean(m));
+      novosItens.push({
+        paoId: paoItem.id,
+        paoNome: paoItem.nome,
+        carneId: carneItem.id,
+        carneNome: carneItem.nome,
+        carnesComposicao: item.carnes_composicao ?? undefined,
+        molhoIds: molhosItem.map((m) => m.id),
+        molhoNomes: molhosItem.map((m) => m.nome),
+        quantidade: item.quantidade,
+        precoUnitario: precoAtualizado,
+        observacao: item.observacao ?? undefined,
+      });
+    }
+    if (novosItens.length > 0) setCarrinho((c) => [...c, ...novosItens]);
+  }
+
   // Animation variants
   const fadeIn = {
     hidden: { opacity: 0, y: 15, filter: "blur(4px)" },
@@ -137,7 +200,22 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+    <div className="space-y-6">
+      <PainelHistorico
+        telefoneBusca={telefoneBusca}
+        onMudarTelefoneBusca={(v) => {
+          setTelefoneBusca(v);
+          setHistorico(null);
+          setBuscaFeita(false);
+        }}
+        buscando={buscando}
+        buscaFeita={buscaFeita}
+        historico={historico}
+        onBuscar={buscarHistorico}
+        onRepetir={repetirPedido}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
       <div className="vidro rounded-3xl p-6 sm:p-10 space-y-10 relative overflow-hidden">
         {/* Ambient glow inside container */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-brasa-2/10 rounded-full blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
@@ -276,6 +354,13 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
               />
+              <input
+                className="alvo-toque w-full bg-noite-2/50 borda-fina focus:border-brasa rounded-xl px-4 text-papel placeholder:text-fumaca text-sm transition-colors"
+                placeholder="Seu telefone (com DDD)"
+                inputMode="tel"
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+              />
               <div className="flex gap-2 text-sm bg-noite-2/50 p-1 rounded-xl borda-fina">
                 {(["retirada", "entrega"] as const).map((t) => (
                   <button
@@ -303,7 +388,22 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
                   </motion.div>
                 )}
               </AnimatePresence>
-              
+
+              <div className="flex gap-2 text-sm bg-noite-2/50 p-1 rounded-xl borda-fina">
+                {(["dinheiro", "pix", "cartao"] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFormaPagamento(f)}
+                    className={`alvo-toque flex-1 rounded-lg uppercase text-xs font-bold capitalize transition-all ${
+                      formaPagamento === f ? "bg-papel text-noite shadow-sm" : "text-papel/50 hover:text-papel"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+
               <input
                 className="alvo-toque w-full bg-noite-2/50 borda-fina focus:border-brasa rounded-xl px-4 text-papel placeholder:text-fumaca text-sm transition-colors"
                 placeholder="Observação geral"
@@ -326,7 +426,7 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
 
             <button
               type="button"
-              disabled={!nome.trim() || enviando}
+              disabled={!podeEnviar || enviando}
               onClick={enviarPedido}
               className="alvo-toque group w-full rounded-xl bg-brasa text-noite font-bold uppercase tracking-wide disabled:opacity-40 shadow-[0_0_30px_-8px_var(--color-brasa)] hover:shadow-[0_0_44px_-4px_var(--color-brasa)] transition-all flex items-center justify-center gap-2 overflow-hidden relative"
             >
@@ -338,6 +438,105 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
           </motion.div>
         )}
       </aside>
+      </div>
+    </div>
+  );
+}
+
+function PainelHistorico({
+  telefoneBusca,
+  onMudarTelefoneBusca,
+  buscando,
+  buscaFeita,
+  historico,
+  onBuscar,
+  onRepetir,
+}: {
+  telefoneBusca: string;
+  onMudarTelefoneBusca: (v: string) => void;
+  buscando: boolean;
+  buscaFeita: boolean;
+  historico: HistoricoCliente | null;
+  onBuscar: () => void;
+  onRepetir: (pedido: HistoricoCliente["pedidos"][number]) => void;
+}) {
+  const disponiveis = historico ? premiosDisponiveis(historico) : 0;
+  const faltam = historico ? faltamParaPremio(historico) : 0;
+
+  return (
+    <div className="vidro rounded-3xl p-5 sm:p-6 relative overflow-hidden">
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center relative z-10">
+        <input
+          className="alvo-toque flex-1 bg-noite-2/50 borda-fina focus:border-brasa rounded-xl px-4 text-papel placeholder:text-fumaca text-sm transition-colors"
+          placeholder="Já pediu antes? Digite seu telefone"
+          inputMode="tel"
+          value={telefoneBusca}
+          onChange={(e) => onMudarTelefoneBusca(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={onBuscar}
+          disabled={!telefoneValido(telefoneBusca) || buscando}
+          className="alvo-toque px-6 rounded-xl bg-papel text-noite font-bold uppercase text-xs disabled:opacity-40 whitespace-nowrap"
+        >
+          {buscando ? "Buscando..." : "Ver meus pedidos"}
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {historico && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="relative z-10 mt-5 space-y-4"
+          >
+            <p className="text-papel/80 text-sm">
+              Oi{historico.nome ? `, ${historico.nome}` : ""}!{" "}
+              {disponiveis > 0 ? (
+                <span className="text-lona font-bold inline-flex items-center gap-1">
+                  <PartyPopper size={16} /> Você tem {disponiveis} prêmio{disponiveis > 1 ? "s" : ""} disponível
+                  {disponiveis > 1 ? "eis" : ""}! Avisa a gente na hora de retirar.
+                </span>
+              ) : (
+                <span className="text-papel/60">
+                  Faltam {faltam} pedido{faltam > 1 ? "s" : ""} pro seu próximo prêmio (a cada 10, ganha 1).
+                </span>
+              )}
+            </p>
+            {historico.pedidos.length > 0 && (
+              <ul className="space-y-2">
+                {historico.pedidos.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex items-center justify-between gap-3 borda-fina rounded-xl px-4 py-3 bg-noite-2/50"
+                  >
+                    <span className="text-sm text-papel/70">
+                      {p.pedido_itens.map((i) => `${i.quantidade}x ${i.pao_nome}`).join(", ")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRepetir(p)}
+                      className="alvo-toque shrink-0 text-xs uppercase font-bold px-4 rounded-full border border-brasa text-brasa hover:bg-brasa/10 transition-colors"
+                    >
+                      Repetir
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </motion.div>
+        )}
+        {buscaFeita && !historico && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="relative z-10 mt-4 text-sm text-papel/50"
+          >
+            Não achamos pedido com esse telefone ainda — deve ser sua primeira vez aqui, bem-vindo!
+          </motion.p>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

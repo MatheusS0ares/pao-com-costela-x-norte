@@ -2,9 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Check } from "lucide-react";
+import { ChevronRight, Check, Gift } from "lucide-react";
 import { useSwipe } from "@/hooks/useSwipe";
 import { atualizarStatusPedido } from "@/lib/actions/pedidos";
+import { usarPremioFidelidade } from "@/lib/actions/clientes";
+import { premiosDisponiveis } from "@/lib/fidelidade";
 import { formatarPreco } from "@/lib/price";
 import type { PedidoComItens } from "@/lib/actions/pedidos";
 import type { StatusPedido } from "@/lib/types";
@@ -46,8 +48,23 @@ export default function PedidoCard({ pedido }: { pedido: PedidoComItens }) {
     });
   }
 
+  function usarPremio() {
+    const clienteId = pedido.cliente?.id;
+    if (!clienteId || pending) return;
+    startTransition(async () => {
+      try {
+        await usarPremioFidelidade(clienteId);
+        router.refresh();
+      } catch {
+        // já foi usado por outro admin nesse meio tempo, ou similar — a
+        // lista atualiza sozinha no próximo refresh e o botão some.
+      }
+    });
+  }
+
   const ref = useSwipe({ aoDeslizarDireita: avancar, ativo: !terminal && !pending });
   const cfg = STATUS_CFG[pedido.status];
+  const premios = pedido.cliente ? premiosDisponiveis(pedido.cliente) : 0;
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
@@ -77,6 +94,18 @@ export default function PedidoCard({ pedido }: { pedido: PedidoComItens }) {
             </li>
           ))}
         </ul>
+
+        {premios > 0 && (
+          <button
+            type="button"
+            onClick={usarPremio}
+            disabled={pending}
+            className="alvo-toque w-full flex items-center justify-center gap-2 text-xs font-bold uppercase px-3 py-2 rounded-xl bg-admin-ambar-bg text-admin-ambar border-2 border-admin-ambar"
+          >
+            <Gift size={14} />
+            Cliente tem {premios} prêmio{premios > 1 ? "s" : ""} — toque pra marcar como usado
+          </button>
+        )}
 
         <div className="flex items-center justify-between pt-1">
           <span
