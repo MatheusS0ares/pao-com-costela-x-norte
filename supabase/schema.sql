@@ -243,6 +243,14 @@ create trigger trg_configuracoes_atualizado before update on xnorte.configuracoe
   for each row execute function xnorte.set_atualizado_em();
 
 -- ── Código sequencial do pedido (por dia) ───────────────
+-- Contador numa tabela própria, incrementado com INSERT ... ON CONFLICT
+-- DO UPDATE — atômico de verdade (dois pedidos inseridos ao mesmo tempo
+-- não podem calcular o mesmo número, diferente de um "count(*) + 1").
+
+create table xnorte.contadores_pedido (
+  dia     date primary key,
+  ultimo  int not null default 0
+);
 
 create or replace function xnorte.gerar_codigo_pedido()
 returns trigger language plpgsql set search_path = xnorte, public as $$
@@ -250,9 +258,10 @@ declare
   proximo int;
 begin
   if new.codigo is null or new.codigo = '' then
-    select count(*) + 1 into proximo
-      from xnorte.pedidos
-     where criado_em::date = current_date;
+    insert into xnorte.contadores_pedido (dia, ultimo)
+    values (current_date, 1)
+    on conflict (dia) do update set ultimo = xnorte.contadores_pedido.ultimo + 1
+    returning ultimo into proximo;
     new.codigo := lpad(proximo::text, 3, '0');
   end if;
   return new;
@@ -393,6 +402,7 @@ alter table xnorte.pedido_itens    enable row level security;
 alter table xnorte.admins          enable row level security;
 alter table xnorte.clientes        enable row level security;
 alter table xnorte.configuracoes   enable row level security;
+alter table xnorte.contadores_pedido enable row level security;
 
 -- catálogo: leitura pública só do que está ativo; admin vê tudo e escreve
 create policy paes_leitura_publica on xnorte.paes for select
@@ -484,6 +494,12 @@ create policy clientes_update_admin on xnorte.clientes for update
 create policy configuracoes_leitura_publica on xnorte.configuracoes for select
   to anon, authenticated using (true);
 create policy configuracoes_escrita_admin on xnorte.configuracoes for all
+  to authenticated using (xnorte.is_admin()) with check (xnorte.is_admin());
+
+-- contadores_pedido: só o trigger de gerar_codigo_pedido() escreve aqui,
+-- rodando com o papel de quem insere o pedido (admin autenticado ou
+-- service_role, que ignora RLS de qualquer forma).
+create policy contadores_pedido_admin on xnorte.contadores_pedido for all
   to authenticated using (xnorte.is_admin()) with check (xnorte.is_admin());
 
 -- ── Storage — fotos do cardápio ─────────────────────────
