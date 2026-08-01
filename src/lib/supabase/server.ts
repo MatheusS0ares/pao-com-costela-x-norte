@@ -40,14 +40,22 @@ export async function createClient() {
   );
 }
 
+// Chamado pelo layout de (protegido) em toda navegação do admin — se o
+// Supabase estiver instável ou mal configurado, tratamos como "não é
+// admin" (redireciona pro login) em vez de derrubar a página com um erro
+// sem explicação.
 export async function getAdminUser() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data: admin } = await supabase
-    .from("admins")
-    .select("id, nome")
-    .eq("id", user.id)
-    .single();
-  return admin ? { id: user.id, email: user.email, nome: admin.nome } : null;
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data: admin } = await supabase
+      .from("admins")
+      .select("id, nome")
+      .eq("id", user.id)
+      .single();
+    return admin ? { id: user.id, email: user.email, nome: admin.nome } : null;
+  } catch {
+    return null;
+  }
 }

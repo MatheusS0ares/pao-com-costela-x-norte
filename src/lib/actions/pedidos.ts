@@ -129,8 +129,10 @@ export async function atualizarStatusPedido(id: string, status: StatusPedido) {
 // Sem checagem de admin aqui de propósito: a rota já é protegida pelo
 // layout de (protegido) (redireciona quem não é admin) e pela RLS
 // (xnorte.pedidos só libera linha real pra quem xnorte.is_admin()).
-// Um throw aqui é redundante e, se disparar durante a renderização,
-// derruba a página inteira em vez de deixar o layout redirecionar.
+// Por isso, ao contrário das outras funções deste arquivo, aqui não
+// lançamos em caso de erro: essa função roda durante a renderização de
+// páginas (Hoje, Pedidos), e um throw no meio dela derruba a página
+// inteira em vez de mostrar a lista vazia.
 export async function pedidosDoDia() {
   const supabase = await createClient();
   const inicioDoDia = new Date();
@@ -141,6 +143,6 @@ export async function pedidosDoDia() {
     .select("*, pedido_itens(*)")
     .gte("criado_em", inicioDoDia.toISOString())
     .order("criado_em", { ascending: false });
-  if (error) throw new Error(error.message);
+  if (error) return [] as PedidoComItens[];
   return data as PedidoComItens[];
 }
