@@ -87,10 +87,21 @@ export type ItemCarrinho = {
   observacao?: string;
 };
 
+export type Cliente = {
+  id: string;
+  telefone: string;
+  nome: string | null;
+  pedidos_validos: number;
+  premios_resgatados: number;
+  criado_em: string;
+  atualizado_em: string;
+};
+
 export type Pedido = {
   id: string;
   codigo: string;
   turno_id: string | null;
+  cliente_id: string | null;
   canal: CanalPedido;
   tipo: TipoPedido;
   cliente_nome: string | null;

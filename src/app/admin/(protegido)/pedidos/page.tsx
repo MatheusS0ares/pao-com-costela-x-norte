@@ -1,11 +1,13 @@
 import { pedidosDoDia } from "@/lib/actions/pedidos";
 import PedidoCard from "@/components/admin/PedidoCard";
+import AvisoNovoPedido from "@/components/admin/AvisoNovoPedido";
 
 export default async function PedidosDoDiaPage() {
   const pedidos = await pedidosDoDia();
 
   return (
     <div>
+      <AvisoNovoPedido total={pedidos.length} />
       <h1 className="text-xl font-bold mb-1">Pedidos do dia</h1>
       <p className="text-xs text-admin-texto/50 mb-6">Arraste o card pra direita pra avançar o status.</p>
       {pedidos.length === 0 ? (

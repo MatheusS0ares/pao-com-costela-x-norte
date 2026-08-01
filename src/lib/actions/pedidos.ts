@@ -2,10 +2,13 @@
 
 import { createClient, getAdminUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { FormaPagamento, ItemCarrinho, Pedido, PedidoItem, StatusPedido, TipoPedido } from "@/lib/types";
+import { normalizarTelefone, telefoneValido } from "@/lib/telefone";
+import type { Cliente, FormaPagamento, ItemCarrinho, Pedido, PedidoItem, StatusPedido, TipoPedido } from "@/lib/types";
 import { turnoAberto } from "./turnos";
 
-export type PedidoComItens = Pedido & { pedido_itens: PedidoItem[] };
+export type PedidoComItens = Pedido & { pedido_itens: PedidoItem[]; cliente?: Cliente | null };
+
+const JANELA_PEDIDO_DUPLICADO_MS = 30_000;
 
 function calcularTotais(itens: ItemCarrinho[], taxaEntrega = 0) {
   const subtotal = itens.reduce((s, i) => s + i.precoUnitario * i.quantidade, 0);
@@ -31,6 +34,7 @@ export async function criarPedidoBalcao(input: {
   itens: ItemCarrinho[];
   formaPagamento: FormaPagamento;
   clienteNome?: string;
+  clienteTelefone?: string;
   observacao?: string;
 }) {
   const admin = await getAdminUser();
@@ -41,13 +45,25 @@ export async function criarPedidoBalcao(input: {
   const turno = await turnoAberto();
   const { subtotal, total } = calcularTotais(input.itens);
 
+  const telefone = input.clienteTelefone ? normalizarTelefone(input.clienteTelefone) : "";
+  let clienteId: string | null = null;
+  if (telefone) {
+    const { data } = await supabase.rpc("registrar_pedido_cliente", {
+      p_telefone: telefone,
+      p_nome: input.clienteNome ?? null,
+    });
+    clienteId = (data as string | null) ?? null;
+  }
+
   const { data: pedido, error } = await supabase
     .from("pedidos")
     .insert({
       turno_id: turno?.id ?? null,
       canal: "balcao",
       tipo: "retirada",
+      cliente_id: clienteId,
       cliente_nome: input.clienteNome || null,
+      cliente_telefone: telefone || null,
       subtotal,
       total,
       forma_pagamento: input.formaPagamento,
@@ -76,24 +92,51 @@ export async function criarPedidoSite(input: {
   itens: ItemCarrinho[];
   tipo: TipoPedido;
   clienteNome: string;
-  clienteTelefone?: string;
+  clienteTelefone: string;
+  formaPagamento: FormaPagamento;
   endereco?: string;
   observacao?: string;
 }) {
   if (input.itens.length === 0) throw new Error("PEDIDO_VAZIO");
   if (!input.clienteNome.trim()) throw new Error("NOME_OBRIGATORIO");
+  if (!telefoneValido(input.clienteTelefone)) throw new Error("TELEFONE_INVALIDO");
+  if (input.tipo === "entrega" && !input.endereco?.trim()) throw new Error("ENDERECO_OBRIGATORIO");
 
+  const telefone = normalizarTelefone(input.clienteTelefone);
   const supabase = createAdminClient();
+
+  // Proteção simples contra clique duplo / reenvio: se esse telefone
+  // acabou de gerar ou atualizar um cliente há poucos segundos, é quase
+  // certo que é o mesmo pedido sendo mandado de novo.
+  const { data: clienteExistente } = await supabase
+    .from("clientes")
+    .select("atualizado_em")
+    .eq("telefone", telefone)
+    .maybeSingle();
+  if (
+    clienteExistente &&
+    Date.now() - new Date(clienteExistente.atualizado_em).getTime() < JANELA_PEDIDO_DUPLICADO_MS
+  ) {
+    throw new Error("PEDIDO_DUPLICADO");
+  }
+
   const { subtotal, total } = calcularTotais(input.itens);
+
+  const { data: clienteId } = await supabase.rpc("registrar_pedido_cliente", {
+    p_telefone: telefone,
+    p_nome: input.clienteNome.trim(),
+  });
 
   const { data: pedido, error } = await supabase
     .from("pedidos")
     .insert({
       canal: "site",
       tipo: input.tipo,
+      cliente_id: (clienteId as string | null) ?? null,
       cliente_nome: input.clienteNome.trim(),
-      cliente_telefone: input.clienteTelefone || null,
-      endereco: input.endereco || null,
+      cliente_telefone: telefone,
+      endereco: input.tipo === "entrega" ? input.endereco?.trim() : null,
+      forma_pagamento: input.formaPagamento,
       subtotal,
       total,
       status: "aberto",
@@ -116,6 +159,22 @@ export async function atualizarStatusPedido(id: string, status: StatusPedido) {
   if (!admin) throw new Error("NAO_AUTORIZADO");
 
   const supabase = await createClient();
+
+  // Cancelar não pode ter contado pra fidelidade — desfaz a soma que
+  // registrar_pedido_cliente() fez na criação, só na primeira vez que
+  // esse pedido é cancelado (evita descontar duas vezes se cancelar for
+  // chamado de novo em cima de um pedido já cancelado).
+  if (status === "cancelado") {
+    const { data: atual } = await supabase
+      .from("pedidos")
+      .select("status, cliente_id")
+      .eq("id", id)
+      .single();
+    if (atual && atual.status !== "cancelado" && atual.cliente_id) {
+      await supabase.rpc("desfazer_pedido_cliente", { p_cliente_id: atual.cliente_id });
+    }
+  }
+
   const camposFechamento = status === "entregue" || status === "cancelado"
     ? { fechado_em: new Date().toISOString() }
     : {};
@@ -142,7 +201,7 @@ export async function pedidosDoDia() {
 
     const { data, error } = await supabase
       .from("pedidos")
-      .select("*, pedido_itens(*)")
+      .select("*, pedido_itens(*), cliente:clientes(id, telefone, nome, pedidos_validos, premios_resgatados, criado_em, atualizado_em)")
       .gte("criado_em", inicioDoDia.toISOString())
       .order("criado_em", { ascending: false });
     if (error) return [] as PedidoComItens[];
