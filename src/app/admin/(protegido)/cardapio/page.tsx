@@ -53,7 +53,7 @@ export default async function CardapioPage() {
               </div>
               <PrecoEditavel
                 valorInicial={p.preco_base}
-                aoSalvar={(novo) => atualizarPrecoBasePao(p.id, novo)}
+                aoSalvar={atualizarPrecoBasePao.bind(null, p.id)}
               />
             </li>
           ))}
@@ -76,7 +76,7 @@ export default async function CardapioPage() {
               <PrecoEditavel
                 valorInicial={c.ajuste}
                 permiteNegativoOuZero
-                aoSalvar={(novo) => atualizarAjusteCarne(c.id, novo)}
+                aoSalvar={atualizarAjusteCarne.bind(null, c.id)}
               />
             </li>
           ))}
@@ -122,12 +122,12 @@ export default async function CardapioPage() {
                   <div className="flex items-center gap-2 mt-1">
                     <AtivoToggle tabela="combos" id={combo.id} ativo={combo.ativo} />
                     <DisponibilidadeToggle tabela="combos" id={combo.id} disponivel={combo.disponivel} />
-                    <RemoverBotao aoConfirmar={() => removerCombo(combo.id)} />
+                    <RemoverBotao aoConfirmar={removerCombo.bind(null, combo.id)} />
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  <PrecoEditavel valorInicial={combo.quantidade} aoSalvar={(v) => atualizarCombo(combo.id, "quantidade", v)} />
-                  <PrecoEditavel valorInicial={combo.preco} aoSalvar={(v) => atualizarCombo(combo.id, "preco", v)} />
+                  <PrecoEditavel valorInicial={combo.quantidade} aoSalvar={atualizarCombo.bind(null, combo.id, "quantidade")} />
+                  <PrecoEditavel valorInicial={combo.preco} aoSalvar={atualizarCombo.bind(null, combo.id, "preco")} />
                 </div>
               </li>
             ))}
@@ -153,7 +153,7 @@ export default async function CardapioPage() {
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <PromocaoAtivaToggle id={promo.id} ativo={promo.ativo} />
-                    <RemoverBotao aoConfirmar={() => removerPromocao(promo.id)} />
+                    <RemoverBotao aoConfirmar={removerPromocao.bind(null, promo.id)} />
                   </div>
                 </div>
               </li>
