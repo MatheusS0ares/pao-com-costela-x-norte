@@ -252,17 +252,29 @@ create table xnorte.contadores_pedido (
   ultimo  int not null default 0
 );
 
+-- A função confere se o código gerado já existe de verdade em
+-- xnorte.pedidos antes de aceitar — se existir por qualquer motivo
+-- (teste manual, dessincronia do contador), tenta o próximo
+-- automaticamente, em vez de confiar cegamente no contador.
 create or replace function xnorte.gerar_codigo_pedido()
 returns trigger language plpgsql set search_path = xnorte, public as $$
 declare
   proximo int;
 begin
   if new.codigo is null or new.codigo = '' then
-    insert into xnorte.contadores_pedido (dia, ultimo)
-    values (current_date, 1)
-    on conflict (dia) do update set ultimo = xnorte.contadores_pedido.ultimo + 1
-    returning ultimo into proximo;
-    new.codigo := lpad(proximo::text, 3, '0');
+    loop
+      insert into xnorte.contadores_pedido (dia, ultimo)
+      values (current_date, 1)
+      on conflict (dia) do update set ultimo = xnorte.contadores_pedido.ultimo + 1
+      returning ultimo into proximo;
+
+      new.codigo := lpad(proximo::text, 3, '0');
+
+      exit when not exists (
+        select 1 from xnorte.pedidos
+         where codigo = new.codigo and criado_em::date = current_date
+      );
+    end loop;
   end if;
   return new;
 end;
