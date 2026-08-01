@@ -2,8 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const isRotaPublica = path === "/admin/login" || path.startsWith("/admin/auth/");
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return NextResponse.next({ request });
+    if (isRotaPublica) return NextResponse.next({ request });
+    const url = request.nextUrl.clone();
+    url.pathname = "/admin/login";
+    return NextResponse.redirect(url);
   }
 
   let response = NextResponse.next({ request });
@@ -26,9 +32,6 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-
-  const path = request.nextUrl.pathname;
-  const isRotaPublica = path === "/admin/login" || path.startsWith("/admin/auth/");
 
   if (path.startsWith("/admin") && !isRotaPublica && !user) {
     const url = request.nextUrl.clone();

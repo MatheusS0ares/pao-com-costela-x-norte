@@ -5,10 +5,20 @@ import { SUPABASE_SCHEMA } from "./config";
 // Cliente autenticado com a sessão do usuário (cookies) — respeita RLS.
 // Usar em Server Components, Route Handlers e Server Actions do painel admin.
 export async function createClient() {
+  // cookies() precisa ser chamado antes de qualquer early return: é essa
+  // chamada que sinaliza ao Next que a rota é dinâmica (opta fora da
+  // geração estática) durante o build.
   const cookieStore = await cookies();
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    throw new Error("SUPABASE_NOT_CONFIGURED");
+  }
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    key,
     {
       db: { schema: SUPABASE_SCHEMA },
       cookies: {

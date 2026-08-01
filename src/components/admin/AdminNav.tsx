@@ -18,14 +18,14 @@ export default function AdminNav({ nome }: { nome: string }) {
 
   return (
     <>
-      <header className="border-b-2 border-admin-borda px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-20 border-b border-admin-borda bg-admin-bg/75 backdrop-blur-xl px-4 py-3 flex items-center justify-between">
         <span className="font-bold">X Norte — Painel</span>
         <Link href="/admin/conta" className="text-sm text-admin-texto/60 underline underline-offset-2">
           {nome}
         </Link>
       </header>
 
-      <nav className="fixed bottom-0 inset-x-0 border-t-2 border-admin-borda bg-admin-bg flex z-20">
+      <nav className="fixed bottom-0 inset-x-0 border-t border-admin-borda bg-admin-bg/80 backdrop-blur-xl shadow-[0_-4px_24px_rgba(0,0,0,0.06)] flex z-20">
         {ITENS.map((item) => {
           const ativo = pathname === item.href;
           const Icone = item.icone;
