@@ -164,14 +164,56 @@ body {
   color: var(--color-admin-texto);
 }
 
-/* Card base reutilizável do painel — cantos arredondados e sombra suave
-   em vez da caixa com borda quadrada usada antes, pra parecer mais app
-   de celular do que formulário de intranet. */
+/* Background ambiente do painel — mesma família visual do site (mesh
+   gradient + grid), só que clareada pro admin ficar legível em uso
+   prolongado. position: fixed pra cobrir o viewport inteiro sem repintar
+   a cada navegação entre páginas do admin. */
+.fundo-cena-admin {
+  position: relative;
+  isolation: isolate;
+}
+.fundo-cena-admin::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse 70% 40% at 10% -10%, color-mix(in srgb, var(--color-brasa) 14%, transparent), transparent),
+    radial-gradient(ellipse 60% 45% at 100% 0%, color-mix(in srgb, var(--color-lona) 12%, transparent), transparent),
+    radial-gradient(ellipse 55% 40% at 50% 110%, color-mix(in srgb, var(--color-letrista) 7%, transparent), transparent);
+  pointer-events: none;
+}
+.fundo-cena-admin::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-admin-texto) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-admin-texto) 4%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle 900px at 50% 0%, black, transparent);
+  pointer-events: none;
+}
+
+/* Card base reutilizável do painel — cantos arredondados, sombra suave e
+   um leve efeito vidro pra flutuar sobre o background ambiente em vez de
+   parecer uma caixa opaca de formulário de intranet. */
 .card-admin {
-  background: #fff;
+  background: color-mix(in srgb, #fff 92%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--color-admin-borda);
   border-radius: 1rem;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 14px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 14px rgba(0,0,0,0.06);
+}
+
+/* Inputs/selects do admin ganham um fundo próprio pra não ficar
+   transparentes em cima do background ambiente. */
+.tema-admin input,
+.tema-admin select,
+.tema-admin textarea {
+  background-color: color-mix(in srgb, #fff 95%, transparent);
 }
 
 .alvo-toque {
