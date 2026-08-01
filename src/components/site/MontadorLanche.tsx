@@ -3,16 +3,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, ArrowRight, Check, CheckCircle2, PartyPopper } from "lucide-react";
-import type { Cardapio, Carne, Configuracoes, FormaPagamento, ItemCarrinho, Molho, Pao, TipoPedido } from "@/lib/types";
+import type { Cardapio, Carne, Configuracoes, FormaPagamento, ItemCarrinho, Molho, Pao, StatusPedido, TipoPedido } from "@/lib/types";
 import { resolverPreco, formatarPreco } from "@/lib/price";
 import { montarMensagemPedido, linkWhatsApp } from "@/lib/whatsapp";
 import { criarPedidoSite } from "@/lib/actions/pedidos";
 import { buscarHistoricoPorTelefone, type HistoricoCliente } from "@/lib/actions/clientes";
 import { normalizarTelefone, telefoneValido } from "@/lib/telefone";
 import { premiosDisponiveis, faltamParaPremio } from "@/lib/fidelidade";
+import { lerClienteLocal, atualizarClienteLocal } from "@/lib/cliente-local";
 import { siteConfig } from "@/lib/site-config";
 
 type Passo = 1 | 2 | 3 | 4;
+
+const STATUS_PUBLICO: Record<StatusPedido, string> = {
+  aberto: "Recebido",
+  preparando: "Preparando",
+  pronto: "Pronto pra buscar",
+  entregue: "Entregue",
+  cancelado: "Cancelado",
+};
 
 export default function MontadorLanche({
   cardapio,
@@ -44,6 +53,20 @@ export default function MontadorLanche({
   const [buscando, setBuscando] = useState(false);
   const [buscaFeita, setBuscaFeita] = useState(false);
   const [historico, setHistorico] = useState<HistoricoCliente | null>(null);
+
+  // "Pequeno acesso" do cliente: se o navegador já lembra ele de uma
+  // visita/pedido anterior, reconhece sozinho — sem botão de login, sem
+  // digitar telefone de novo.
+  useEffect(() => {
+    const salvo = lerClienteLocal();
+    if (!salvo) return;
+    setNome(salvo.nome);
+    setTelefone(salvo.telefone);
+    if (salvo.endereco) setEndereco(salvo.endereco);
+    setTelefoneBusca(salvo.telefone);
+    buscarHistorico(salvo.telefone);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const precoAtual = useMemo(() => {
     if (!pao || !carne) return null;
@@ -147,6 +170,7 @@ export default function MontadorLanche({
         endereco: tipo === "entrega" ? endereco : undefined,
         observacao: observacaoPedido,
       });
+      atualizarClienteLocal({ nome, telefone, endereco: tipo === "entrega" ? endereco : undefined });
       window.location.href = linkFallback();
     } catch (err) {
       if (err instanceof Error && err.message === "PEDIDO_DUPLICADO") {
@@ -160,17 +184,19 @@ export default function MontadorLanche({
     }
   }
 
-  async function buscarHistorico() {
-    if (!telefoneValido(telefoneBusca)) return;
+  async function buscarHistorico(telefoneParaBuscar: string = telefoneBusca) {
+    if (!telefoneValido(telefoneParaBuscar)) return;
     setBuscando(true);
     setHistorico(null);
     setBuscaFeita(false);
     try {
-      const resultado = await buscarHistoricoPorTelefone(telefoneBusca);
+      const resultado = await buscarHistoricoPorTelefone(telefoneParaBuscar);
       setHistorico(resultado);
       if (resultado) {
-        setTelefone(normalizarTelefone(telefoneBusca));
+        const telefoneNormalizado = normalizarTelefone(telefoneParaBuscar);
+        setTelefone(telefoneNormalizado);
         if (resultado.nome) setNome(resultado.nome);
+        atualizarClienteLocal({ nome: resultado.nome ?? "", telefone: telefoneNormalizado });
       }
     } finally {
       setBuscando(false);
@@ -535,9 +561,17 @@ function PainelHistorico({
                     key={p.id}
                     className="flex items-center justify-between gap-3 borda-fina rounded-xl px-4 py-3 bg-noite-2/50"
                   >
-                    <span className="text-sm text-papel/70">
-                      {p.pedido_itens.map((i) => `${i.quantidade}x ${i.pao_nome}`).join(", ")}
-                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-papel/40 uppercase tracking-wide mb-0.5">
+                        {new Date(p.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                        {" — "}
+                        {STATUS_PUBLICO[p.status]}
+                      </p>
+                      <p className="text-sm text-papel/70 truncate">
+                        {p.pedido_itens.map((i) => `${i.quantidade}x ${i.pao_nome}`).join(", ")}
+                      </p>
+                      <p className="preco text-xs text-papel/50 mt-0.5">{formatarPreco(Number(p.total))}</p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => onRepetir(p)}
