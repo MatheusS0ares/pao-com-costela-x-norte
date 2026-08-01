@@ -105,18 +105,20 @@ export async function criarPedidoSite(input: {
   const telefone = normalizarTelefone(input.clienteTelefone);
   const supabase = createAdminClient();
 
-  // Proteção simples contra clique duplo / reenvio: se esse telefone
-  // acabou de gerar ou atualizar um cliente há poucos segundos, é quase
-  // certo que é o mesmo pedido sendo mandado de novo.
-  const { data: clienteExistente } = await supabase
-    .from("clientes")
-    .select("atualizado_em")
-    .eq("telefone", telefone)
+  // Proteção simples contra clique duplo / reenvio: bloqueia só se já
+  // existe um PEDIDO de verdade desse telefone nos últimos segundos —
+  // checar em cima do cliente (como era antes) bloqueava a tentativa
+  // seguinte mesmo quando a anterior tinha falhado antes de chegar a
+  // criar um pedido (ex.: erro de rede, tabela não configurada ainda).
+  const { data: pedidoRecente } = await supabase
+    .from("pedidos")
+    .select("id")
+    .eq("cliente_telefone", telefone)
+    .eq("canal", "site")
+    .gte("criado_em", new Date(Date.now() - JANELA_PEDIDO_DUPLICADO_MS).toISOString())
+    .limit(1)
     .maybeSingle();
-  if (
-    clienteExistente &&
-    Date.now() - new Date(clienteExistente.atualizado_em).getTime() < JANELA_PEDIDO_DUPLICADO_MS
-  ) {
+  if (pedidoRecente) {
     throw new Error("PEDIDO_DUPLICADO");
   }
 
