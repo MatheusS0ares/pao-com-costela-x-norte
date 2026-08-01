@@ -2,7 +2,6 @@ import { getAdminUser } from "@/lib/supabase/server";
 import { getCardapioAdmin } from "@/lib/catalog";
 import { turnoAberto } from "@/lib/actions/turnos";
 import { pedidosDoDia } from "@/lib/actions/pedidos";
-import { formatarPreco } from "@/lib/price";
 import HeroSaudacao from "@/components/admin/HeroSaudacao";
 import StatCard from "@/components/admin/StatCard";
 import TurnoControl from "@/components/admin/TurnoControl";
@@ -33,7 +32,7 @@ export default async function HojePage() {
 
       <div className="grid grid-cols-2 gap-4">
         <StatCard label="pedidos hoje" valor={pedidosValidos.length} />
-        <StatCard label="vendido hoje" valor={totalVendido} formatar={formatarPreco} atraso={0.08} />
+        <StatCard label="vendido hoje" valor={totalVendido} formato="preco" atraso={0.08} />
       </div>
 
       <div className="card-admin p-4">

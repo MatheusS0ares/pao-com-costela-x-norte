@@ -32,23 +32,33 @@ export async function getCardapioPublico(): Promise<Cardapio> {
   };
 }
 
-/** Cardápio como o painel admin enxerga: tudo, sem cache, para edição. */
+/**
+ * Cardápio como o painel admin enxerga: tudo, sem cache, para edição.
+ * Chamada durante a renderização de Hoje, Cardápio e Novo pedido — uma
+ * falha de rede com o Supabase (não um erro "resolvido" tipo permissão
+ * negada, mas a própria promise rejeitando) precisa virar cardápio vazio
+ * em vez de derrubar a página inteira.
+ */
 export async function getCardapioAdmin(): Promise<Cardapio> {
-  const supabase = await createAuthedClient();
-  const [paes, carnes, molhos, excecoes, promocoes, combos] = await Promise.all([
-    supabase.from("paes").select("*").order("ordem"),
-    supabase.from("carnes").select("*").order("ordem"),
-    supabase.from("molhos").select("*").order("ordem"),
-    supabase.from("precos_excecao").select("*"),
-    supabase.from("promocoes").select("*"),
-    supabase.from("combos").select("*").order("ordem"),
-  ]);
-  return {
-    paes: paes.data ?? [],
-    carnes: carnes.data ?? [],
-    molhos: molhos.data ?? [],
-    excecoes: excecoes.data ?? [],
-    promocoes: promocoes.data ?? [],
-    combos: combos.data ?? [],
-  };
+  try {
+    const supabase = await createAuthedClient();
+    const [paes, carnes, molhos, excecoes, promocoes, combos] = await Promise.all([
+      supabase.from("paes").select("*").order("ordem"),
+      supabase.from("carnes").select("*").order("ordem"),
+      supabase.from("molhos").select("*").order("ordem"),
+      supabase.from("precos_excecao").select("*"),
+      supabase.from("promocoes").select("*"),
+      supabase.from("combos").select("*").order("ordem"),
+    ]);
+    return {
+      paes: paes.data ?? [],
+      carnes: carnes.data ?? [],
+      molhos: molhos.data ?? [],
+      excecoes: excecoes.data ?? [],
+      promocoes: promocoes.data ?? [],
+      combos: combos.data ?? [],
+    };
+  } catch {
+    return VAZIO;
+  }
 }
