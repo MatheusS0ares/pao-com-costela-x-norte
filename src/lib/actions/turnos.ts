@@ -8,14 +8,22 @@ async function exigirAdmin() {
   return admin;
 }
 
+// Chamada durante a renderização de Hoje — assim como pedidosDoDia(), uma
+// falha de rede com o Supabase (promise rejeitando, não um erro
+// "resolvido") precisa virar "nenhum turno aberto" em vez de derrubar a
+// página inteira.
 export async function turnoAberto() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("turnos")
-    .select("*")
-    .is("fechado_em", null)
-    .maybeSingle();
-  return data;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("turnos")
+      .select("*")
+      .is("fechado_em", null)
+      .maybeSingle();
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export async function abrirTurno(observacao?: string) {

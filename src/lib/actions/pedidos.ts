@@ -131,18 +131,23 @@ export async function atualizarStatusPedido(id: string, status: StatusPedido) {
 // (xnorte.pedidos só libera linha real pra quem xnorte.is_admin()).
 // Por isso, ao contrário das outras funções deste arquivo, aqui não
 // lançamos em caso de erro: essa função roda durante a renderização de
-// páginas (Hoje, Pedidos), e um throw no meio dela derruba a página
-// inteira em vez de mostrar a lista vazia.
+// páginas (Hoje, Pedidos), e um throw no meio dela — seja um erro
+// "resolvido" (RLS, schema) ou a própria promise rejeitando (falha de
+// rede) — derruba a página inteira em vez de mostrar a lista vazia.
 export async function pedidosDoDia() {
-  const supabase = await createClient();
-  const inicioDoDia = new Date();
-  inicioDoDia.setHours(0, 0, 0, 0);
+  try {
+    const supabase = await createClient();
+    const inicioDoDia = new Date();
+    inicioDoDia.setHours(0, 0, 0, 0);
 
-  const { data, error } = await supabase
-    .from("pedidos")
-    .select("*, pedido_itens(*)")
-    .gte("criado_em", inicioDoDia.toISOString())
-    .order("criado_em", { ascending: false });
-  if (error) return [] as PedidoComItens[];
-  return data as PedidoComItens[];
+    const { data, error } = await supabase
+      .from("pedidos")
+      .select("*, pedido_itens(*)")
+      .gte("criado_em", inicioDoDia.toISOString())
+      .order("criado_em", { ascending: false });
+    if (error) return [] as PedidoComItens[];
+    return data as PedidoComItens[];
+  } catch {
+    return [] as PedidoComItens[];
+  }
 }
