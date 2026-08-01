@@ -38,6 +38,7 @@ export default function MontadorLanche({
   const [observacaoPedido, setObservacaoPedido] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [pedidoDuplicado, setPedidoDuplicado] = useState(false);
 
   const [telefoneBusca, setTelefoneBusca] = useState("");
   const [buscando, setBuscando] = useState(false);
@@ -135,6 +136,7 @@ export default function MontadorLanche({
     if (!podeEnviar) return;
     setEnviando(true);
     setErro(null);
+    setPedidoDuplicado(false);
     try {
       await criarPedidoSite({
         itens: carrinho,
@@ -146,8 +148,13 @@ export default function MontadorLanche({
         observacao: observacaoPedido,
       });
       window.location.href = linkFallback();
-    } catch {
-      setErro("Não conseguimos registrar o pedido agora, mas você ainda pode enviar direto pelo WhatsApp.");
+    } catch (err) {
+      if (err instanceof Error && err.message === "PEDIDO_DUPLICADO") {
+        setPedidoDuplicado(true);
+        setErro("Esse pedido já foi registrado agora há pouco — não precisa enviar de novo. Se quiser confirmar, chama a gente no WhatsApp.");
+      } else {
+        setErro("Não conseguimos registrar o pedido agora, mas você ainda pode enviar direto pelo WhatsApp.");
+      }
     } finally {
       setEnviando(false);
     }
@@ -426,12 +433,14 @@ export default function MontadorLanche({
             {erro && (
               <div className="text-sm text-brasa-2 bg-brasa/10 p-3 rounded-lg border border-brasa/20 space-y-2">
                 <p>{erro}</p>
-                <a
-                  href={linkFallback()}
-                  className="alvo-toque flex items-center justify-center w-full rounded-lg bg-brasa/20 text-brasa-2 font-bold uppercase tracking-wide text-xs"
-                >
-                  Tentar direto pelo WhatsApp
-                </a>
+                {!pedidoDuplicado && (
+                  <a
+                    href={linkFallback()}
+                    className="alvo-toque flex items-center justify-center w-full rounded-lg bg-brasa/20 text-brasa-2 font-bold uppercase tracking-wide text-xs"
+                  >
+                    Tentar direto pelo WhatsApp
+                  </a>
+                )}
               </div>
             )}
 
