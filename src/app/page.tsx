@@ -1,4 +1,5 @@
 import { getCardapioPublico, isSupabaseConfigured } from "@/lib/catalog";
+import { getConfiguracoes } from "@/lib/configuracoes";
 import SmoothScroller from "@/components/site/SmoothScroller";
 import SiteNav from "@/components/site/SiteNav";
 import Hero from "@/components/site/Hero";
@@ -11,7 +12,7 @@ import Rodape from "@/components/site/Rodape";
 import ScrollReveal from "@/components/site/ScrollReveal";
 
 export default async function HomePage() {
-  const cardapio = await getCardapioPublico();
+  const [cardapio, configuracoes] = await Promise.all([getCardapioPublico(), getConfiguracoes()]);
   const itensMarquee = [
     ...cardapio.paes.map((p) => p.nome),
     ...cardapio.carnes.map((c) => c.nome),
@@ -35,7 +36,7 @@ export default async function HomePage() {
               <p className="text-papel/50 mb-10">Três toques e já era.</p>
             </ScrollReveal>
             {isSupabaseConfigured() && cardapio.paes.length > 0 ? (
-              <MontadorLanche cardapio={cardapio} />
+              <MontadorLanche cardapio={cardapio} configuracoes={configuracoes} />
             ) : (
               <p className="text-papel/60">Cardápio em configuração — volte em breve.</p>
             )}

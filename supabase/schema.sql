@@ -168,6 +168,16 @@ create table xnorte.turnos (
 -- garante no máximo um turno aberto por vez
 create unique index turno_aberto_unico on xnorte.turnos ((fechado_em is null)) where fechado_em is null;
 
+-- Configurações do dia a dia que o admin liga/desliga pelo painel (não
+-- é preço nem cardápio). Linha única, id fixo — mais simples que
+-- modelar "tabela de 1 linha só" com constraint extra.
+create table xnorte.configuracoes (
+  id               uuid primary key default gen_random_uuid(),
+  entrega_ativa    boolean not null default false,
+  fidelidade_ativa boolean not null default true,
+  atualizado_em    timestamptz not null default now()
+);
+
 -- Identificação simples do cliente pelo telefone, sem senha/login. Ver
 -- seção "fidelidade" mais abaixo para pedidos_validos/premios_resgatados.
 create table xnorte.clientes (
@@ -228,6 +238,8 @@ create trigger trg_molhos_atualizado before update on xnorte.molhos
 create trigger trg_excecao_atualizado before update on xnorte.precos_excecao
   for each row execute function xnorte.set_atualizado_em();
 create trigger trg_clientes_atualizado before update on xnorte.clientes
+  for each row execute function xnorte.set_atualizado_em();
+create trigger trg_configuracoes_atualizado before update on xnorte.configuracoes
   for each row execute function xnorte.set_atualizado_em();
 
 -- ── Código sequencial do pedido (por dia) ───────────────
@@ -380,6 +392,7 @@ alter table xnorte.pedidos         enable row level security;
 alter table xnorte.pedido_itens    enable row level security;
 alter table xnorte.admins          enable row level security;
 alter table xnorte.clientes        enable row level security;
+alter table xnorte.configuracoes   enable row level security;
 
 -- catálogo: leitura pública só do que está ativo; admin vê tudo e escreve
 create policy paes_leitura_publica on xnorte.paes for select
@@ -466,6 +479,13 @@ create policy clientes_insert_admin on xnorte.clientes for insert
 create policy clientes_update_admin on xnorte.clientes for update
   to authenticated using (xnorte.is_admin()) with check (xnorte.is_admin());
 
+-- configuracoes: sem informação sensível (só 2 booleanos de operação)
+-- — leitura liberada pra todo mundo, escrita só pra admin.
+create policy configuracoes_leitura_publica on xnorte.configuracoes for select
+  to anon, authenticated using (true);
+create policy configuracoes_escrita_admin on xnorte.configuracoes for all
+  to authenticated using (xnorte.is_admin()) with check (xnorte.is_admin());
+
 -- ── Storage — fotos do cardápio ─────────────────────────
 -- Bucket com nome prefixado (xnorte-cardapio) pra não colidir com um
 -- bucket "cardapio" de outro app no mesmo projeto Supabase. Público
@@ -483,6 +503,10 @@ create policy xnorte_fotos_update_admin on storage.objects for update
   to authenticated using (bucket_id = 'xnorte-cardapio' and xnorte.is_admin());
 create policy xnorte_fotos_delete_admin on storage.objects for delete
   to authenticated using (bucket_id = 'xnorte-cardapio' and xnorte.is_admin());
+
+-- linha única de configurações, id fixo (ver comentário na criação da tabela)
+insert into xnorte.configuracoes (id, entrega_ativa, fidelidade_ativa) values
+  ('00000000-0000-0000-0000-000000000001', false, true);
 
 -- ============ SEED ============
 -- Preços conferidos no cardápio físico do trailer (fotos enviadas pelo

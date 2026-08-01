@@ -87,6 +87,11 @@ export type ItemCarrinho = {
   observacao?: string;
 };
 
+export type Configuracoes = {
+  entrega_ativa: boolean;
+  fidelidade_ativa: boolean;
+};
+
 export type Cliente = {
   id: string;
   telefone: string;

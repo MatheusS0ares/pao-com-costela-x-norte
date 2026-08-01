@@ -1,9 +1,10 @@
 import { pedidosDoDia } from "@/lib/actions/pedidos";
+import { getConfiguracoes } from "@/lib/configuracoes";
 import PedidoCard from "@/components/admin/PedidoCard";
 import AvisoNovoPedido from "@/components/admin/AvisoNovoPedido";
 
 export default async function PedidosDoDiaPage() {
-  const pedidos = await pedidosDoDia();
+  const [pedidos, configuracoes] = await Promise.all([pedidosDoDia(), getConfiguracoes()]);
 
   return (
     <div>
@@ -16,7 +17,7 @@ export default async function PedidosDoDiaPage() {
         <ul className="space-y-3">
           {pedidos.map((pedido) => (
             <li key={pedido.id}>
-              <PedidoCard pedido={pedido} />
+              <PedidoCard pedido={pedido} fidelidadeAtiva={configuracoes.fidelidade_ativa} />
             </li>
           ))}
         </ul>

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, ArrowRight, Check, CheckCircle2, PartyPopper } from "lucide-react";
-import type { Cardapio, Carne, FormaPagamento, ItemCarrinho, Molho, Pao, TipoPedido } from "@/lib/types";
+import type { Cardapio, Carne, Configuracoes, FormaPagamento, ItemCarrinho, Molho, Pao, TipoPedido } from "@/lib/types";
 import { resolverPreco, formatarPreco } from "@/lib/price";
 import { montarMensagemPedido, linkWhatsApp } from "@/lib/whatsapp";
 import { criarPedidoSite } from "@/lib/actions/pedidos";
@@ -14,7 +14,13 @@ import { siteConfig } from "@/lib/site-config";
 
 type Passo = 1 | 2 | 3 | 4;
 
-export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
+export default function MontadorLanche({
+  cardapio,
+  configuracoes,
+}: {
+  cardapio: Cardapio;
+  configuracoes: Configuracoes;
+}) {
   const [passo, setPasso] = useState<Passo>(1);
   const [pao, setPao] = useState<Pao | null>(null);
   const [carne, setCarne] = useState<Carne | null>(null);
@@ -213,6 +219,7 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
         historico={historico}
         onBuscar={buscarHistorico}
         onRepetir={repetirPedido}
+        fidelidadeAtiva={configuracoes.fidelidade_ativa}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
@@ -361,21 +368,25 @@ export default function MontadorLanche({ cardapio }: { cardapio: Cardapio }) {
                 value={telefone}
                 onChange={(e) => setTelefone(e.target.value)}
               />
-              <div className="flex gap-2 text-sm bg-noite-2/50 p-1 rounded-xl borda-fina">
-                {(["retirada", "entrega"] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setTipo(t)}
-                    className={`alvo-toque flex-1 rounded-lg uppercase text-xs font-bold transition-all ${
-                      tipo === t ? "bg-papel text-noite shadow-sm" : "text-papel/50 hover:text-papel"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-              
+              {configuracoes.entrega_ativa ? (
+                <div className="flex gap-2 text-sm bg-noite-2/50 p-1 rounded-xl borda-fina">
+                  {(["retirada", "entrega"] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setTipo(t)}
+                      className={`alvo-toque flex-1 rounded-lg uppercase text-xs font-bold transition-all ${
+                        tipo === t ? "bg-papel text-noite shadow-sm" : "text-papel/50 hover:text-papel"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-papel/40 uppercase tracking-wide px-1">Retirada no local — sem entrega por hoje</p>
+              )}
+
               <AnimatePresence>
                 {tipo === "entrega" && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
@@ -451,6 +462,7 @@ function PainelHistorico({
   historico,
   onBuscar,
   onRepetir,
+  fidelidadeAtiva,
 }: {
   telefoneBusca: string;
   onMudarTelefoneBusca: (v: string) => void;
@@ -459,6 +471,7 @@ function PainelHistorico({
   historico: HistoricoCliente | null;
   onBuscar: () => void;
   onRepetir: (pedido: HistoricoCliente["pedidos"][number]) => void;
+  fidelidadeAtiva: boolean;
 }) {
   const disponiveis = historico ? premiosDisponiveis(historico) : 0;
   const faltam = historico ? faltamParaPremio(historico) : 0;
@@ -493,7 +506,9 @@ function PainelHistorico({
           >
             <p className="text-papel/80 text-sm">
               Oi{historico.nome ? `, ${historico.nome}` : ""}!{" "}
-              {disponiveis > 0 ? (
+              {!fidelidadeAtiva ? (
+                <span className="text-papel/60">Esses foram seus últimos pedidos.</span>
+              ) : disponiveis > 0 ? (
                 <span className="text-lona font-bold inline-flex items-center gap-1">
                   <PartyPopper size={16} /> Você tem {disponiveis} prêmio{disponiveis > 1 ? "s" : ""} disponível
                   {disponiveis > 1 ? "eis" : ""}! Avisa a gente na hora de retirar.

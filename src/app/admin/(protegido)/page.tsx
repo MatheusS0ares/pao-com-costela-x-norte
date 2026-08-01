@@ -1,19 +1,22 @@
 import { getAdminUser } from "@/lib/supabase/server";
 import { getCardapioAdmin } from "@/lib/catalog";
+import { getConfiguracoes } from "@/lib/configuracoes";
 import { turnoAberto } from "@/lib/actions/turnos";
 import { pedidosDoDia } from "@/lib/actions/pedidos";
 import HeroSaudacao from "@/components/admin/HeroSaudacao";
 import StatCard from "@/components/admin/StatCard";
 import TurnoControl from "@/components/admin/TurnoControl";
 import DisponibilidadeToggle from "@/components/admin/DisponibilidadeToggle";
+import ConfiguracaoToggle from "@/components/admin/ConfiguracaoToggle";
 import AvisoNovoPedido from "@/components/admin/AvisoNovoPedido";
 
 export default async function HojePage() {
-  const [admin, cardapio, turno, pedidos] = await Promise.all([
+  const [admin, cardapio, turno, pedidos, configuracoes] = await Promise.all([
     getAdminUser(),
     getCardapioAdmin(),
     turnoAberto(),
     pedidosDoDia(),
+    getConfiguracoes(),
   ]);
 
   const pedidosValidos = pedidos.filter((p) => p.status !== "cancelado");
@@ -50,6 +53,24 @@ export default async function HojePage() {
               <DisponibilidadeToggle tabela={item.tabela} id={item.id} disponivel={item.disponivel} />
             </li>
           ))}
+        </ul>
+      </div>
+
+      <div>
+        <h2 className="font-bold uppercase text-sm text-admin-texto/60 mb-3">Configurações do site</h2>
+        <ul className="card-admin divide-y divide-admin-borda overflow-hidden">
+          <ConfiguracaoToggle
+            campo="entrega_ativa"
+            valorInicial={configuracoes.entrega_ativa}
+            label="Aceita entrega"
+            descricao="Desligado, o site só oferece retirada no local."
+          />
+          <ConfiguracaoToggle
+            campo="fidelidade_ativa"
+            valorInicial={configuracoes.fidelidade_ativa}
+            label="Programa de fidelidade"
+            descricao="A cada 10 pedidos, 1 prêmio. Desligado, esconde o aviso pro cliente e o selo aqui no painel."
+          />
         </ul>
       </div>
     </div>
