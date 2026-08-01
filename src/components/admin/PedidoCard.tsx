@@ -21,7 +21,13 @@ const STATUS_CFG: Record<StatusPedido, { label: string; cor: string; bg: string 
   cancelado: { label: "Cancelado", cor: "#b91c1c", bg: "#fef2f2" },
 };
 
-export default function PedidoCard({ pedido }: { pedido: PedidoComItens }) {
+export default function PedidoCard({
+  pedido,
+  fidelidadeAtiva = true,
+}: {
+  pedido: PedidoComItens;
+  fidelidadeAtiva?: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirmandoCancelar, setConfirmandoCancelar] = useState(false);
@@ -64,7 +70,7 @@ export default function PedidoCard({ pedido }: { pedido: PedidoComItens }) {
 
   const ref = useSwipe({ aoDeslizarDireita: avancar, ativo: !terminal && !pending });
   const cfg = STATUS_CFG[pedido.status];
-  const premios = pedido.cliente ? premiosDisponiveis(pedido.cliente) : 0;
+  const premios = fidelidadeAtiva && pedido.cliente ? premiosDisponiveis(pedido.cliente) : 0;
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
