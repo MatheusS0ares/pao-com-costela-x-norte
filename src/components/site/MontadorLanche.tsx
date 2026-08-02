@@ -751,7 +751,7 @@ function AndamentoPedido({ pedido }: { pedido: HistoricoCliente["pedidos"][numbe
 
       {pedido.status === "pronto" && pedido.tipo === "retirada" && (
         <p className="text-sm text-lona font-bold flex items-center gap-2">
-          <PartyPopper size={16} /> Já pode vir buscar!
+          <PartyPopper size={16} /> Seu pedido #{pedido.codigo} tá pronto e te esperando — pode vir buscar!
         </p>
       )}
 

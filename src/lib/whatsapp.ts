@@ -1,5 +1,6 @@
 import type { ItemCarrinho, TipoPedido } from "./types";
 import { formatarPreco } from "./price";
+import { siteConfig } from "./site-config";
 
 function linhaItem(item: ItemCarrinho): string {
   const carne = item.carnesComposicao?.length
@@ -44,5 +45,8 @@ export function linkWhatsApp(numero: string, mensagem: string): string {
 /** Mensagem pro admin avisar o cliente que o pedido pra retirada tá pronto. */
 export function montarMensagemPedidoPronto(params: { nome: string | null; codigo: string }): string {
   const nome = params.nome?.trim() || "tudo bem";
-  return `Oi, ${nome}! Seu pedido #${params.codigo} já tá pronto — pode vir buscar. 😊`;
+  return (
+    `Oi, ${nome}! Aqui é da ${siteConfig.nome} 🔥\n\n` +
+    `Seu pedido #${params.codigo} já tá pronto e te esperando — pode vir buscar quando quiser!`
+  );
 }
