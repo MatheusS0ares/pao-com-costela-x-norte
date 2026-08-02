@@ -192,7 +192,7 @@ create table xnorte.clientes (
 
 create table xnorte.pedidos (
   id               uuid primary key default gen_random_uuid(),
-  codigo           text not null unique,          -- sequencial curto do dia: "042"
+  codigo           text not null,                 -- sequencial curto do dia: "042" (único por dia, ver índice abaixo)
   turno_id         uuid references xnorte.turnos(id),
   cliente_id       uuid references xnorte.clientes(id),
   canal            text not null check (canal in ('balcao','whatsapp','site')),
@@ -211,6 +211,10 @@ create table xnorte.pedidos (
   criado_em        timestamptz not null default now(),
   fechado_em       timestamptz
 );
+
+-- código único por dia, não pra sempre — "042" de hoje e "042" de ontem
+-- não colidem (o gerador reinicia a contagem toda virada de dia).
+create unique index pedidos_codigo_dia_key on xnorte.pedidos (codigo, (criado_em::date));
 
 -- snapshot: nomes e valores gravados no momento da venda, nunca por referência
 -- (garante que alterar preço hoje não muda pedido já registrado — critério de aceite #6)
