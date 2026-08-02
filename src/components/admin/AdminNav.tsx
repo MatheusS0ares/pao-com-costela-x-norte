@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Home, ShoppingBag, UtensilsCrossed, ClipboardList, Wallet } from "lucide-react";
+import { Home, ShoppingBag, UtensilsCrossed, ClipboardList, Users, Wallet } from "lucide-react";
 
 const ITENS = [
   { href: "/admin", label: "Hoje", icone: Home },
   { href: "/admin/pedido-novo", label: "Novo", icone: ShoppingBag },
   { href: "/admin/cardapio", label: "Cardápio", icone: UtensilsCrossed },
   { href: "/admin/pedidos", label: "Pedidos", icone: ClipboardList },
+  { href: "/admin/clientes", label: "Clientes", icone: Users },
   { href: "/admin/fechamento", label: "Fechamento", icone: Wallet },
 ];
 

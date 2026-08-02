@@ -27,7 +27,7 @@ const marcador = Permanent_Marker({
   weight: "400",
 });
 
-const urlBase = process.env.NEXT_PUBLIC_SITE_URL ?? "https://xnorte.vercel.app";
+const urlBase = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pao-com-costela-x-norte.vercel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(urlBase),
