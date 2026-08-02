@@ -193,6 +193,7 @@ create table xnorte.clientes (
 create table xnorte.pedidos (
   id               uuid primary key default gen_random_uuid(),
   codigo           text not null,                 -- sequencial curto do dia: "042" (único por dia, ver índice abaixo)
+  dia              date not null default current_date, -- dia do código acima; coluna própria porque um índice não aceita "criado_em::date" (não é imutável o suficiente pro Postgres)
   turno_id         uuid references xnorte.turnos(id),
   cliente_id       uuid references xnorte.clientes(id),
   canal            text not null check (canal in ('balcao','whatsapp','site')),
@@ -214,7 +215,7 @@ create table xnorte.pedidos (
 
 -- código único por dia, não pra sempre — "042" de hoje e "042" de ontem
 -- não colidem (o gerador reinicia a contagem toda virada de dia).
-create unique index pedidos_codigo_dia_key on xnorte.pedidos (codigo, (criado_em::date));
+create unique index pedidos_codigo_dia_key on xnorte.pedidos (codigo, dia);
 
 -- snapshot: nomes e valores gravados no momento da venda, nunca por referência
 -- (garante que alterar preço hoje não muda pedido já registrado — critério de aceite #6)
@@ -276,7 +277,7 @@ begin
 
       exit when not exists (
         select 1 from xnorte.pedidos
-         where codigo = new.codigo and criado_em::date = current_date
+         where codigo = new.codigo and dia = current_date
       );
     end loop;
   end if;
