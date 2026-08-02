@@ -58,7 +58,9 @@ const jsonLd = {
   address: {
     "@type": "PostalAddress",
     streetAddress: siteConfig.enderecoRua,
-    addressLocality: siteConfig.cidade,
+    addressLocality: siteConfig.cidadeFormal,
+    addressRegion: siteConfig.estado,
+    postalCode: siteConfig.cep,
     addressCountry: "BR",
   },
   ...(siteConfig.latitude && siteConfig.longitude

@@ -10,9 +10,14 @@ export const siteConfig = {
 
   telefoneWhatsApp: "5561999781007", // confirmado com o cliente (61) 99978-1007
 
-  // TODO-CLIENTE (brief seção 11, perguntas 5–7): confirmar antes de publicar
-  enderecoRua: "Quadra X, Setor Norte",
-  cep: "",
+  // Endereço formal — confirmado com o cliente via cadastro no Google Meu
+  // Negócio. Precisa bater exatamente com o que está lá (mesma grafia)
+  // pro Google cruzar as duas fontes e confiar na informação (NAP —
+  // Nome, Endereço, Telefone consistentes entre site e Google).
+  enderecoRua: "SNO Q 1 CL 1 Gama",
+  cidadeFormal: "Brasília",
+  estado: "DF",
+  cep: "72430-100",
   latitude: undefined as number | undefined,
   longitude: undefined as number | undefined,
   horario: "18h às 23h", // provisório — confirmar dias e horário reais
