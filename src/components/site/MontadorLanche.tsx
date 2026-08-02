@@ -301,7 +301,7 @@ export default function MontadorLanche({
         {/* Ambient glow inside container */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-brasa-2/10 rounded-full blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
 
-        <IndicadorPassos passoAtual={passo} />
+        <IndicadorPassos passoAtual={passo} onVoltarPara={setPasso} />
 
         <div className="relative z-10 space-y-12">
           <PassoPaes ativo={passo === 1} paes={cardapio.paes} selecionado={pao} onSelecionar={selecionarPao} />
@@ -785,10 +785,16 @@ function PrecoAnimado({ valor }: { valor: number }) {
   );
 }
 
-function IndicadorPassos({ passoAtual }: { passoAtual: Passo }) {
+function IndicadorPassos({
+  passoAtual,
+  onVoltarPara,
+}: {
+  passoAtual: Passo;
+  onVoltarPara: (p: Passo) => void;
+}) {
   const nomes = ["Pão", "Carne", "Molho", "Pronto"];
   return (
-    <div className="flex items-center relative z-10" aria-hidden="true">
+    <div className="flex items-center relative z-10">
       {nomes.map((nome, i) => {
         const n = (i + 1) as Passo;
         const ativo = n <= passoAtual;
@@ -796,21 +802,25 @@ function IndicadorPassos({ passoAtual }: { passoAtual: Passo }) {
         return (
           <div key={nome} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center gap-2 shrink-0 relative">
-              <motion.div
+              <motion.button
+                type="button"
                 layout
+                disabled={!passado}
+                onClick={() => onVoltarPara(n)}
+                aria-label={passado ? `Voltar pra etapa ${nome}` : nome}
                 className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold titulo-display transition-colors duration-500 relative z-10 ${
                   ativo ? "bg-papel text-noite shadow-[0_0_20px_-5px_rgba(255,255,255,0.5)]" : "borda-fina text-papel/40 bg-noite-2"
-                }`}
+                } ${passado ? "cursor-pointer hover:ring-2 hover:ring-papel/40" : "cursor-default"}`}
               >
                 {passado ? <Check size={16} /> : i + 1}
-              </motion.div>
+              </motion.button>
               <span className={`absolute -bottom-5 text-[10px] uppercase tracking-wider whitespace-nowrap transition-colors duration-300 ${ativo ? "text-papel" : "text-papel/30"}`}>
                 {nome}
               </span>
             </div>
             {i < nomes.length - 1 && (
               <div className="h-px flex-1 mx-3 relative overflow-hidden bg-papel/10">
-                <motion.div 
+                <motion.div
                   className="absolute inset-0 bg-papel"
                   initial={{ width: "0%" }}
                   animate={{ width: passado ? "100%" : "0%" }}
