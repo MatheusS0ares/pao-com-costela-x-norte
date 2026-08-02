@@ -2,12 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Check, Gift } from "lucide-react";
+import { ChevronRight, Check, Gift, MessageCircle } from "lucide-react";
 import { useSwipe } from "@/hooks/useSwipe";
 import { atualizarStatusPedido } from "@/lib/actions/pedidos";
 import { usarPremioFidelidade } from "@/lib/actions/clientes";
 import { premiosDisponiveis } from "@/lib/fidelidade";
 import { formatarPreco } from "@/lib/price";
+import { linkWhatsApp, montarMensagemPedidoPronto } from "@/lib/whatsapp";
+import { telefoneParaWhatsApp } from "@/lib/telefone";
 import type { PedidoComItens } from "@/lib/actions/pedidos";
 import type { StatusPedido } from "@/lib/types";
 
@@ -71,6 +73,7 @@ export default function PedidoCard({
   const ref = useSwipe({ aoDeslizarDireita: avancar, ativo: !terminal && !pending });
   const cfg = STATUS_CFG[pedido.status];
   const premios = fidelidadeAtiva && pedido.cliente ? premiosDisponiveis(pedido.cliente) : 0;
+  const telefoneParaAvisar = pedido.status === "pronto" && pedido.tipo === "retirada" ? pedido.cliente_telefone : null;
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
@@ -100,6 +103,21 @@ export default function PedidoCard({
             </li>
           ))}
         </ul>
+
+        {telefoneParaAvisar && (
+          <a
+            href={linkWhatsApp(
+              telefoneParaWhatsApp(telefoneParaAvisar),
+              montarMensagemPedidoPronto({ nome: pedido.cliente_nome, codigo: pedido.codigo })
+            )}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="alvo-toque w-full flex items-center justify-center gap-2 text-xs font-bold uppercase px-3 py-2 rounded-xl bg-admin-verde-bg text-admin-verde border-2 border-admin-verde"
+          >
+            <MessageCircle size={14} />
+            Avisar cliente no WhatsApp
+          </a>
+        )}
 
         {premios > 0 && (
           <button
