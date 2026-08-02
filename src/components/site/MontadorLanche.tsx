@@ -184,11 +184,14 @@ export default function MontadorLanche({
     }
   }
 
-  async function buscarHistorico(telefoneParaBuscar: string = telefoneBusca) {
+  async function buscarHistorico(telefoneParaBuscar: string = telefoneBusca, opcoes?: { silencioso?: boolean }) {
     if (!telefoneValido(telefoneParaBuscar)) return;
-    setBuscando(true);
-    setHistorico(null);
-    setBuscaFeita(false);
+    const silencioso = opcoes?.silencioso ?? false;
+    if (!silencioso) {
+      setBuscando(true);
+      setHistorico(null);
+      setBuscaFeita(false);
+    }
     try {
       const resultado = await buscarHistoricoPorTelefone(telefoneParaBuscar);
       setHistorico(resultado);
@@ -199,10 +202,25 @@ export default function MontadorLanche({
         atualizarClienteLocal({ nome: resultado.nome ?? "", telefone: telefoneNormalizado });
       }
     } finally {
-      setBuscando(false);
-      setBuscaFeita(true);
+      if (!silencioso) {
+        setBuscando(false);
+        setBuscaFeita(true);
+      }
     }
   }
+
+  // Enquanto houver um pedido em aberto/preparando/pronto, atualiza o
+  // status sozinho — assim o cliente vê o andamento sem precisar
+  // recarregar a página ou buscar de novo manualmente.
+  useEffect(() => {
+    const pedidoAtivo = historico?.pedidos.find(
+      (p) => p.status === "aberto" || p.status === "preparando" || p.status === "pronto"
+    );
+    if (!pedidoAtivo || !telefoneValido(telefone)) return;
+    const id = setInterval(() => buscarHistorico(telefone, { silencioso: true }), 15000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historico, telefone]);
 
   function repetirPedido(pedidoAntigo: HistoricoCliente["pedidos"][number]) {
     const novosItens: ItemCarrinho[] = [];
@@ -510,6 +528,10 @@ function PainelHistorico({
 }) {
   const disponiveis = historico ? premiosDisponiveis(historico) : 0;
   const faltam = historico ? faltamParaPremio(historico) : 0;
+  const pedidoAtivo = historico?.pedidos.find(
+    (p) => p.status === "aberto" || p.status === "preparando" || p.status === "pronto"
+  );
+  const pedidosAnteriores = historico?.pedidos.filter((p) => p.id !== pedidoAtivo?.id) ?? [];
 
   return (
     <div className="vidro rounded-3xl p-5 sm:p-6 relative overflow-hidden">
@@ -554,34 +576,42 @@ function PainelHistorico({
                 </span>
               )}
             </p>
-            {historico.pedidos.length > 0 && (
-              <ul className="space-y-2">
-                {historico.pedidos.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 borda-fina rounded-xl px-4 py-3 bg-noite-2/50"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-[11px] text-papel/40 uppercase tracking-wide mb-0.5">
-                        {new Date(p.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
-                        {" — "}
-                        {STATUS_PUBLICO[p.status]}
-                      </p>
-                      <p className="text-sm text-papel/70 truncate">
-                        {p.pedido_itens.map((i) => `${i.quantidade}x ${i.pao_nome}`).join(", ")}
-                      </p>
-                      <p className="preco text-xs text-papel/50 mt-0.5">{formatarPreco(Number(p.total))}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onRepetir(p)}
-                      className="alvo-toque shrink-0 text-xs uppercase font-bold px-4 rounded-full border border-brasa text-brasa hover:bg-brasa/10 transition-colors"
+
+            {pedidoAtivo && <AndamentoPedido pedido={pedidoAtivo} />}
+
+            {pedidosAnteriores.length > 0 && (
+              <div className="space-y-2">
+                {pedidoAtivo && (
+                  <p className="text-[11px] text-papel/40 uppercase tracking-wide">Pedidos anteriores</p>
+                )}
+                <ul className="space-y-2">
+                  {pedidosAnteriores.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center justify-between gap-3 borda-fina rounded-xl px-4 py-3 bg-noite-2/50"
                     >
-                      Repetir
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                      <div className="min-w-0">
+                        <p className="text-[11px] text-papel/40 uppercase tracking-wide mb-0.5">
+                          {new Date(p.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                          {" — "}
+                          {STATUS_PUBLICO[p.status]}
+                        </p>
+                        <p className="text-sm text-papel/70 truncate">
+                          {p.pedido_itens.map((i) => `${i.quantidade}x ${i.pao_nome}`).join(", ")}
+                        </p>
+                        <p className="preco text-xs text-papel/50 mt-0.5">{formatarPreco(Number(p.total))}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onRepetir(p)}
+                        className="alvo-toque shrink-0 text-xs uppercase font-bold px-4 rounded-full border border-brasa text-brasa hover:bg-brasa/10 transition-colors"
+                      >
+                        Repetir
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </motion.div>
         )}
@@ -595,6 +625,72 @@ function PainelHistorico({
           </motion.p>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+const ETAPAS_PEDIDO: { status: StatusPedido; label: string }[] = [
+  { status: "aberto", label: "Recebido" },
+  { status: "preparando", label: "Preparando" },
+  { status: "pronto", label: "Pronto" },
+];
+
+function AndamentoPedido({ pedido }: { pedido: HistoricoCliente["pedidos"][number] }) {
+  const indiceAtual = ETAPAS_PEDIDO.findIndex((e) => e.status === pedido.status);
+
+  return (
+    <div className="borda-fina rounded-2xl p-5 bg-brasa/5 space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-bold text-papel">Pedido #{pedido.codigo} em andamento</p>
+        <span className="preco text-sm text-papel/60 shrink-0">{formatarPreco(Number(pedido.total))}</span>
+      </div>
+
+      <div className="flex items-center" aria-hidden="true">
+        {ETAPAS_PEDIDO.map((etapa, i) => {
+          const feito = i < indiceAtual;
+          const atual = i === indiceAtual;
+          return (
+            <div key={etapa.status} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center gap-1.5 shrink-0">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-500 ${
+                    feito || atual ? "bg-brasa text-noite" : "borda-fina text-papel/30 bg-noite-2"
+                  }`}
+                >
+                  {feito ? <Check size={14} /> : i + 1}
+                </div>
+                <span
+                  className={`text-[10px] uppercase tracking-wide whitespace-nowrap ${
+                    atual ? "text-brasa font-bold" : "text-papel/40"
+                  }`}
+                >
+                  {etapa.label}
+                </span>
+              </div>
+              {i < ETAPAS_PEDIDO.length - 1 && (
+                <div className="h-px flex-1 mx-2 bg-papel/10 relative overflow-hidden">
+                  <motion.div
+                    className="absolute inset-0 bg-brasa"
+                    initial={false}
+                    animate={{ width: feito ? "100%" : "0%" }}
+                    transition={{ duration: 0.5 }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {pedido.status === "pronto" && pedido.tipo === "retirada" && (
+        <p className="text-sm text-lona font-bold flex items-center gap-2">
+          <PartyPopper size={16} /> Já pode vir buscar!
+        </p>
+      )}
+
+      <p className="text-xs text-papel/50 truncate">
+        {pedido.pedido_itens.map((i) => `${i.quantidade}x ${i.pao_nome}`).join(", ")}
+      </p>
     </div>
   );
 }

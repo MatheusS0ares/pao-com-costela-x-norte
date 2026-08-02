@@ -40,3 +40,9 @@ export function montarMensagemPedido(params: {
 export function linkWhatsApp(numero: string, mensagem: string): string {
   return `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
 }
+
+/** Mensagem pro admin avisar o cliente que o pedido pra retirada tá pronto. */
+export function montarMensagemPedidoPronto(params: { nome: string | null; codigo: string }): string {
+  const nome = params.nome?.trim() || "tudo bem";
+  return `Oi, ${nome}! Seu pedido #${params.codigo} já tá pronto — pode vir buscar. 😊`;
+}
