@@ -8,7 +8,7 @@ import StatCard from "@/components/admin/StatCard";
 import TurnoControl from "@/components/admin/TurnoControl";
 import DisponibilidadeToggle from "@/components/admin/DisponibilidadeToggle";
 import ConfiguracaoToggle from "@/components/admin/ConfiguracaoToggle";
-import AvisoNovoPedido from "@/components/admin/AvisoNovoPedido";
+import AvisoSonoro from "@/components/admin/AvisoSonoro";
 
 export default async function HojePage() {
   const [admin, cardapio, turno, pedidos, configuracoes] = await Promise.all([
@@ -32,7 +32,7 @@ export default async function HojePage() {
 
   return (
     <div className="space-y-6">
-      <AvisoNovoPedido total={pedidosValidos.length} />
+      <AvisoSonoro pedidos={pedidosValidos.map((p) => ({ id: p.id, status: p.status }))} />
       <HeroSaudacao nome={admin?.nome ?? "por aqui"} abertos={abertos} prontos={prontos} />
 
       <div className="grid grid-cols-2 gap-4">
