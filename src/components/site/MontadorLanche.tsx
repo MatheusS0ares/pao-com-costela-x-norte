@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, ArrowRight, Check, CheckCircle2, PartyPopper } from "lucide-react";
+import { ShoppingBag, ArrowRight, Check, CheckCircle2, PartyPopper, X } from "lucide-react";
 import type { Cardapio, Carne, Configuracoes, FormaPagamento, ItemCarrinho, Molho, Pao, StatusPedido, TipoPedido } from "@/lib/types";
 import { resolverPreco, formatarPreco } from "@/lib/price";
 import { montarMensagemPedido, linkWhatsApp } from "@/lib/whatsapp";
@@ -53,6 +53,8 @@ export default function MontadorLanche({
   const [buscando, setBuscando] = useState(false);
   const [buscaFeita, setBuscaFeita] = useState(false);
   const [historico, setHistorico] = useState<HistoricoCliente | null>(null);
+  const [mensagemCarrinho, setMensagemCarrinho] = useState<string | null>(null);
+  const carrinhoRef = useRef<HTMLDivElement>(null);
 
   // "Pequeno acesso" do cliente: se o navegador já lembra ele de uma
   // visita/pedido anterior, reconhece sozinho — sem botão de login, sem
@@ -246,7 +248,28 @@ export default function MontadorLanche({
         observacao: item.observacao ?? undefined,
       });
     }
-    if (novosItens.length > 0) setCarrinho((c) => [...c, ...novosItens]);
+    if (novosItens.length > 0) {
+      setCarrinho((c) => [...c, ...novosItens]);
+      setMensagemCarrinho(
+        novosItens.length < pedidoAntigo.pedido_itens.length
+          ? "Adicionamos ao carrinho o que ainda tá disponível — alguns itens desse pedido saíram do cardápio."
+          : `${novosItens.length} ${novosItens.length > 1 ? "itens adicionados" : "item adicionado"} ao seu carrinho!`
+      );
+      carrinhoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      setMensagemCarrinho("Esse pedido não tem mais nenhum item disponível no cardápio de hoje.");
+    }
+    setTimeout(() => setMensagemCarrinho(null), 5000);
+  }
+
+  function removerDoCarrinho(indice: number) {
+    setCarrinho((c) => c.filter((_, i) => i !== indice));
+  }
+
+  function alterarQuantidadeCarrinho(indice: number, delta: number) {
+    setCarrinho((c) =>
+      c.map((item, i) => (i === indice ? { ...item, quantidade: Math.max(1, item.quantidade + delta) } : item))
+    );
   }
 
   // Animation variants
@@ -357,14 +380,27 @@ export default function MontadorLanche({
         </div>
       </div>
 
-      <aside className="vidro rounded-3xl p-6 sm:p-8 space-y-6 h-fit lg:sticky lg:top-28 flex flex-col relative overflow-hidden">
+      <aside ref={carrinhoRef} className="vidro rounded-3xl p-6 sm:p-8 space-y-6 h-fit lg:sticky lg:top-28 flex flex-col relative overflow-hidden">
         <div className="absolute top-0 right-0 w-40 h-40 bg-lona/10 rounded-full blur-[60px] pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
-        
+
         <div className="flex items-center gap-3 relative z-10">
           <ShoppingBag className="text-lona" size={24} />
           <h3 className="titulo-display text-2xl">Seu pedido</h3>
         </div>
-        
+
+        <AnimatePresence>
+          {mensagemCarrinho && (
+            <motion.p
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="relative z-10 text-xs text-lona bg-lona/10 border border-lona/20 rounded-lg px-3 py-2"
+            >
+              {mensagemCarrinho}
+            </motion.p>
+          )}
+        </AnimatePresence>
+
         <div className="relative z-10 flex-1">
           {carrinho.length === 0 ? (
             <div className="h-40 flex flex-col items-center justify-center text-center text-papel/30 space-y-3">
@@ -375,25 +411,56 @@ export default function MontadorLanche({
             <ul className="space-y-4 text-sm">
               <AnimatePresence>
                 {carrinho.map((item, i) => (
-                  <motion.li 
-                    key={i} 
+                  <motion.li
+                    key={i}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="flex justify-between gap-3 border-b border-papel/10 pb-4 last:border-0"
+                    exit={{ opacity: 0, x: 20 }}
+                    className="flex flex-col gap-2 border-b border-papel/10 pb-4 last:border-0"
                   >
-                    <div className="text-papel/80 font-light flex-1">
-                      <strong className="text-papel block mb-1">
-                        {item.quantidade}x {item.paoNome}
-                      </strong>
-                      <span className="text-papel/60">
-                        {item.carneNome} {item.carnesComposicao ? `(${item.carnesComposicao.join(", ")})` : ""}
-                        {item.molhoNomes.length ? ` — ${item.molhoNomes.join(", ")}` : ""}
-                      </span>
-                      {item.observacao && <p className="text-xs text-lona mt-1 italic">&ldquo;{item.observacao}&rdquo;</p>}
+                    <div className="flex justify-between gap-2">
+                      <div className="text-papel/80 font-light flex-1 min-w-0">
+                        <strong className="text-papel block mb-1 truncate">{item.paoNome}</strong>
+                        <span className="text-papel/60">
+                          {item.carneNome} {item.carnesComposicao ? `(${item.carnesComposicao.join(", ")})` : ""}
+                          {item.molhoNomes.length ? ` — ${item.molhoNomes.join(", ")}` : ""}
+                        </span>
+                        {item.observacao && <p className="text-xs text-lona mt-1 italic">&ldquo;{item.observacao}&rdquo;</p>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removerDoCarrinho(i)}
+                        aria-label="Remover item"
+                        className="alvo-toque shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-papel/40 hover:text-brasa hover:bg-brasa/10 transition-colors"
+                      >
+                        <X size={16} />
+                      </button>
                     </div>
-                    <span className="preco whitespace-nowrap text-papel mt-1">
-                      {formatarPreco(item.precoUnitario * item.quantidade)}
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 bg-noite-2 rounded-full p-1 borda-fina">
+                        <button
+                          type="button"
+                          onClick={() => alterarQuantidadeCarrinho(i, -1)}
+                          disabled={item.quantidade <= 1}
+                          aria-label="Diminuir quantidade"
+                          className="alvo-toque w-8 h-8 rounded-full hover:bg-papel/10 font-bold transition-colors flex items-center justify-center disabled:opacity-30"
+                        >
+                          −
+                        </button>
+                        <span className="preco text-sm w-5 text-center">{item.quantidade}</span>
+                        <button
+                          type="button"
+                          onClick={() => alterarQuantidadeCarrinho(i, 1)}
+                          aria-label="Aumentar quantidade"
+                          className="alvo-toque w-8 h-8 rounded-full hover:bg-papel/10 font-bold transition-colors flex items-center justify-center"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <span className="preco whitespace-nowrap text-papel">
+                        {formatarPreco(item.precoUnitario * item.quantidade)}
+                      </span>
+                    </div>
                   </motion.li>
                 ))}
               </AnimatePresence>
