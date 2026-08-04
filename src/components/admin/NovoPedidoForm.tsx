@@ -62,6 +62,7 @@ export default function NovoPedidoForm({ cardapio }: { cardapio: Cardapio }) {
     setMensagem(null);
 
     const item: ItemCarrinho = {
+      tipo: "lanche",
       paoId: pao.id,
       paoNome: pao.nome,
       carneId: carne.id,

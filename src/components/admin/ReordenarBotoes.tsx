@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { moverOrdem } from "@/lib/actions/catalogo";
+import { moverOrdem, type TabelaCatalogo } from "@/lib/actions/catalogo";
 
 export default function ReordenarBotoes({
   tabela,
@@ -10,7 +10,7 @@ export default function ReordenarBotoes({
   primeiro,
   ultimo,
 }: {
-  tabela: "paes" | "carnes" | "molhos" | "combos";
+  tabela: TabelaCatalogo;
   id: string;
   primeiro: boolean;
   ultimo: boolean;

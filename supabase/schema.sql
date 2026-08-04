@@ -105,6 +105,19 @@ create table xnorte.molhos (
   atualizado_em timestamptz not null default now()
 );
 
+-- Item avulso: entra direto no carrinho, sem depender de pão/carne.
+create table xnorte.bebidas (
+  id            uuid primary key default gen_random_uuid(),
+  nome          text not null,
+  preco         numeric(10,2) not null check (preco >= 0),
+  foto_url      text,
+  ordem         int not null default 0,
+  ativo         boolean not null default true,
+  disponivel    boolean not null default true,
+  criado_em     timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
+);
+
 -- sobrescrita de célula da matriz, quando a regra base+ajuste não vale
 create table xnorte.precos_excecao (
   pao_id        uuid not null references xnorte.paes(id) on delete cascade,
@@ -175,6 +188,8 @@ create table xnorte.configuracoes (
   id               uuid primary key default gen_random_uuid(),
   entrega_ativa    boolean not null default false,
   fidelidade_ativa boolean not null default true,
+  aberto_hoje      boolean not null default true,
+  mensagem_fechado text,
   atualizado_em    timestamptz not null default now()
 );
 
@@ -219,17 +234,26 @@ create unique index pedidos_codigo_dia_key on xnorte.pedidos (codigo, dia);
 
 -- snapshot: nomes e valores gravados no momento da venda, nunca por referência
 -- (garante que alterar preço hoje não muda pedido já registrado — critério de aceite #6)
+-- tipo = "lanche" usa pao_nome/carne_nome/etc; tipo = "bebida" (item
+-- avulso) usa nome_item no lugar — a constraint garante que cada linha
+-- tem só o par coerente com o próprio tipo preenchido.
 create table xnorte.pedido_itens (
   id                 uuid primary key default gen_random_uuid(),
   pedido_id          uuid not null references xnorte.pedidos(id) on delete cascade,
-  pao_nome           text not null,
-  carne_nome         text not null,
+  tipo               text not null default 'lanche' check (tipo in ('lanche', 'bebida')),
+  pao_nome           text,
+  carne_nome         text,
   carnes_composicao  text[],                       -- preenchido quando misto
   molhos_nomes       text[],                       -- molhos são à vontade, pode ter mais de um
+  nome_item          text,                         -- nome da bebida (ou outro item que não seja lanche)
   quantidade         int not null default 1 check (quantidade > 0),
   preco_unitario     numeric(10,2) not null,
   preco_total        numeric(10,2) not null,
-  observacao         text
+  observacao         text,
+  constraint pedido_itens_coerente check (
+    (tipo = 'lanche' and pao_nome is not null and carne_nome is not null)
+    or (tipo = 'bebida' and nome_item is not null)
+  )
 );
 
 -- ── Triggers de atualizado_em ───────────────────────────
@@ -239,6 +263,8 @@ create trigger trg_paes_atualizado before update on xnorte.paes
 create trigger trg_carnes_atualizado before update on xnorte.carnes
   for each row execute function xnorte.set_atualizado_em();
 create trigger trg_molhos_atualizado before update on xnorte.molhos
+  for each row execute function xnorte.set_atualizado_em();
+create trigger trg_bebidas_atualizado before update on xnorte.bebidas
   for each row execute function xnorte.set_atualizado_em();
 create trigger trg_excecao_atualizado before update on xnorte.precos_excecao
   for each row execute function xnorte.set_atualizado_em();
@@ -409,6 +435,7 @@ alter default privileges in schema xnorte grant execute on functions to anon, au
 alter table xnorte.paes            enable row level security;
 alter table xnorte.carnes          enable row level security;
 alter table xnorte.molhos          enable row level security;
+alter table xnorte.bebidas         enable row level security;
 alter table xnorte.precos_excecao  enable row level security;
 alter table xnorte.combos          enable row level security;
 alter table xnorte.promocoes       enable row level security;
@@ -441,6 +468,13 @@ create policy molhos_leitura_publica on xnorte.molhos for select
 create policy molhos_leitura_admin on xnorte.molhos for select
   to authenticated using (xnorte.is_admin());
 create policy molhos_escrita_admin on xnorte.molhos for all
+  to authenticated using (xnorte.is_admin()) with check (xnorte.is_admin());
+
+create policy bebidas_leitura_publica on xnorte.bebidas for select
+  to anon, authenticated using (ativo = true);
+create policy bebidas_leitura_admin on xnorte.bebidas for select
+  to authenticated using (xnorte.is_admin());
+create policy bebidas_escrita_admin on xnorte.bebidas for all
   to authenticated using (xnorte.is_admin()) with check (xnorte.is_admin());
 
 create policy excecao_leitura_publica on xnorte.precos_excecao for select

@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { alternarDisponibilidade } from "@/lib/actions/catalogo";
+import { alternarDisponibilidade, type TabelaCatalogo } from "@/lib/actions/catalogo";
 
 export default function DisponibilidadeToggle({
   tabela,
   id,
   disponivel,
 }: {
-  tabela: "paes" | "carnes" | "molhos" | "combos";
+  tabela: TabelaCatalogo;
   id: string;
   disponivel: boolean;
 }) {

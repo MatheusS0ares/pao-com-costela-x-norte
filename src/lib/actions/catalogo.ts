@@ -3,7 +3,7 @@
 import { revalidateTag } from "next/cache";
 import { createClient, getAdminUser } from "@/lib/supabase/server";
 
-type TabelaCatalogo = "paes" | "carnes" | "molhos" | "combos";
+export type TabelaCatalogo = "paes" | "carnes" | "molhos" | "combos" | "bebidas";
 
 async function exigirAdmin() {
   const admin = await getAdminUser();
@@ -40,6 +40,45 @@ export async function atualizarPrecoBasePao(id: string, precoBase: number) {
   if (error) throw new Error(error.message);
 
   await registrarLog(supabase, admin.id, "paes", id, "preco_base", atual?.preco_base, precoBase);
+  revalidateTag("cardapio");
+}
+
+export async function atualizarPrecoBebida(id: string, preco: number) {
+  const admin = await exigirAdmin();
+  if (!(preco > 0)) throw new Error("PRECO_INVALIDO");
+
+  const supabase = await createClient();
+  const { data: atual } = await supabase.from("bebidas").select("preco").eq("id", id).single();
+  const { error } = await supabase.from("bebidas").update({ preco }).eq("id", id);
+  if (error) throw new Error(error.message);
+
+  await registrarLog(supabase, admin.id, "bebidas", id, "preco", atual?.preco, preco);
+  revalidateTag("cardapio");
+}
+
+export async function criarBebida(input: { nome: string; preco: number }) {
+  await exigirAdmin();
+  if (!input.nome.trim()) throw new Error("NOME_VAZIO");
+  if (!(input.preco > 0)) throw new Error("PRECO_INVALIDO");
+
+  const supabase = await createClient();
+  const { data: existentes } = await supabase.from("bebidas").select("ordem").order("ordem", { ascending: false }).limit(1);
+  const proximaOrdem = (existentes?.[0]?.ordem ?? 0) + 1;
+
+  const { error } = await supabase.from("bebidas").insert({
+    nome: input.nome.trim(),
+    preco: input.preco,
+    ordem: proximaOrdem,
+  });
+  if (error) throw new Error(error.message);
+  revalidateTag("cardapio");
+}
+
+export async function removerBebida(id: string) {
+  await exigirAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase.from("bebidas").delete().eq("id", id);
+  if (error) throw new Error(error.message);
   revalidateTag("cardapio");
 }
 

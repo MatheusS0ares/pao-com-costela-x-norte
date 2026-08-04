@@ -31,6 +31,16 @@ export type Molho = {
   disponivel: boolean;
 };
 
+export type Bebida = {
+  id: string;
+  nome: string;
+  preco: number;
+  foto_url: string | null;
+  ordem: number;
+  ativo: boolean;
+  disponivel: boolean;
+};
+
 export type PrecoExcecao = {
   pao_id: string;
   carne_id: string;
@@ -64,6 +74,7 @@ export type Cardapio = {
   paes: Pao[];
   carnes: Carne[];
   molhos: Molho[];
+  bebidas: Bebida[];
   excecoes: PrecoExcecao[];
   promocoes: Promocao[];
   combos: Combo[];
@@ -74,7 +85,8 @@ export type CanalPedido = "balcao" | "whatsapp" | "site";
 export type TipoPedido = "retirada" | "entrega";
 export type StatusPedido = "aberto" | "preparando" | "pronto" | "entregue" | "cancelado";
 
-export type ItemCarrinho = {
+export type ItemLanche = {
+  tipo: "lanche";
   paoId: string;
   paoNome: string;
   carneId: string;
@@ -87,9 +99,21 @@ export type ItemCarrinho = {
   observacao?: string;
 };
 
+export type ItemBebida = {
+  tipo: "bebida";
+  bebidaId: string;
+  bebidaNome: string;
+  quantidade: number;
+  precoUnitario: number;
+};
+
+export type ItemCarrinho = ItemLanche | ItemBebida;
+
 export type Configuracoes = {
   entrega_ativa: boolean;
   fidelidade_ativa: boolean;
+  aberto_hoje: boolean;
+  mensagem_fechado: string | null;
 };
 
 export type Cliente = {
@@ -122,13 +146,19 @@ export type Pedido = {
   fechado_em: string | null;
 };
 
+export type TipoItemPedido = "lanche" | "bebida";
+
 export type PedidoItem = {
   id: string;
   pedido_id: string;
-  pao_nome: string;
-  carne_nome: string;
+  tipo: TipoItemPedido;
+  // Preenchidos quando tipo = "lanche"
+  pao_nome: string | null;
+  carne_nome: string | null;
   carnes_composicao: string[] | null;
   molhos_nomes: string[] | null;
+  // Preenchido quando tipo = "bebida" (e outros tipos futuros que não sejam lanche)
+  nome_item: string | null;
   quantidade: number;
   preco_unitario: number;
   preco_total: number;
