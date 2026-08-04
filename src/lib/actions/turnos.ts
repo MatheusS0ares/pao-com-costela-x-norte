@@ -50,7 +50,7 @@ export async function resumoTurno(turnoId: string) {
 
   const { data: pedidos, error } = await supabase
     .from("pedidos")
-    .select("total, forma_pagamento, status, pedido_itens(pao_nome, carne_nome, quantidade)")
+    .select("total, forma_pagamento, status, pedido_itens(tipo, pao_nome, carne_nome, nome_item, quantidade)")
     .eq("turno_id", turnoId);
   if (error) throw new Error(error.message);
 
@@ -61,7 +61,7 @@ export async function resumoTurno(turnoId: string) {
   const contagemItens = new Map<string, number>();
   for (const pedido of validos) {
     for (const item of pedido.pedido_itens ?? []) {
-      const chave = `${item.pao_nome} — ${item.carne_nome}`;
+      const chave = item.tipo === "bebida" ? String(item.nome_item) : `${item.pao_nome} — ${item.carne_nome}`;
       contagemItens.set(chave, (contagemItens.get(chave) ?? 0) + item.quantidade);
     }
   }

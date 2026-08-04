@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { alternarAtivo } from "@/lib/actions/catalogo";
+import { alternarAtivo, type TabelaCatalogo } from "@/lib/actions/catalogo";
 
 export default function AtivoToggle({
   tabela,
   id,
   ativo,
 }: {
-  tabela: "paes" | "carnes" | "molhos" | "combos";
+  tabela: TabelaCatalogo;
   id: string;
   ativo: boolean;
 }) {

@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { renomearItem } from "@/lib/actions/catalogo";
+import { renomearItem, type TabelaCatalogo } from "@/lib/actions/catalogo";
 
 export default function NomeEditavel({
   tabela,
   id,
   nomeInicial,
 }: {
-  tabela: "paes" | "carnes" | "molhos" | "combos";
+  tabela: TabelaCatalogo;
   id: string;
   nomeInicial: string;
 }) {

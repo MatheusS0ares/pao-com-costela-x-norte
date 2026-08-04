@@ -2,8 +2,10 @@ import { getCardapioAdmin } from "@/lib/catalog";
 import {
   atualizarPrecoBasePao,
   atualizarAjusteCarne,
+  atualizarPrecoBebida,
   atualizarCombo,
   removerCombo,
+  removerBebida,
   removerPromocao,
 } from "@/lib/actions/catalogo";
 import { formatarPreco } from "@/lib/price";
@@ -15,6 +17,7 @@ import FotoUpload from "@/components/admin/FotoUpload";
 import ExcecaoPreco from "@/components/admin/ExcecaoPreco";
 import ReordenarBotoes from "@/components/admin/ReordenarBotoes";
 import ComboForm from "@/components/admin/ComboForm";
+import BebidaForm from "@/components/admin/BebidaForm";
 import PromocaoForm from "@/components/admin/PromocaoForm";
 import PromocaoAtivaToggle from "@/components/admin/PromocaoAtivaToggle";
 import RemoverBotao from "@/components/admin/RemoverBotao";
@@ -98,6 +101,29 @@ export default async function CardapioPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="font-bold uppercase text-sm text-admin-texto/60">Bebidas</h2>
+        {cardapio.bebidas.length > 0 && (
+          <ul className="divide-y divide-admin-borda border-y-2 border-admin-borda">
+            {cardapio.bebidas.map((b, i) => (
+              <li key={b.id} className="flex items-center gap-3 py-3">
+                <ReordenarBotoes tabela="bebidas" id={b.id} primeiro={i === 0} ultimo={i === cardapio.bebidas.length - 1} />
+                <div className="flex-1 min-w-0">
+                  <NomeEditavel tabela="bebidas" id={b.id} nomeInicial={b.nome} />
+                  <div className="flex items-center gap-2 mt-1">
+                    <AtivoToggle tabela="bebidas" id={b.id} ativo={b.ativo} />
+                    <DisponibilidadeToggle tabela="bebidas" id={b.id} disponivel={b.disponivel} />
+                    <RemoverBotao aoConfirmar={removerBebida.bind(null, b.id)} />
+                  </div>
+                </div>
+                <PrecoEditavel valorInicial={b.preco} aoSalvar={atualizarPrecoBebida.bind(null, b.id)} />
+              </li>
+            ))}
+          </ul>
+        )}
+        <BebidaForm />
       </section>
 
       <section>

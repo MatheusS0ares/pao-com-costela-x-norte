@@ -3,11 +3,14 @@ import { formatarPreco } from "./price";
 import { siteConfig } from "./site-config";
 
 function linhaItem(item: ItemCarrinho): string {
+  const total = item.precoUnitario * item.quantidade;
+  if (item.tipo === "bebida") {
+    return `${item.quantidade}x ${item.bebidaNome} — ${formatarPreco(total)}`;
+  }
   const carne = item.carnesComposicao?.length
     ? `${item.carneNome} (${item.carnesComposicao.join(" + ")})`
     : item.carneNome;
   const molho = item.molhoNomes.length ? ` — ${item.molhoNomes.join(", ")}` : "";
-  const total = item.precoUnitario * item.quantidade;
   return `${item.quantidade}x ${item.paoNome} — ${carne}${molho} — ${formatarPreco(total)}`;
 }
 

@@ -96,12 +96,18 @@ export default function PedidoCard({
         </div>
 
         <ul className="text-sm text-admin-texto/70 space-y-0.5">
-          {(pedido.pedido_itens ?? []).map((item) => (
-            <li key={item.id}>
-              {item.quantidade}x {item.pao_nome} — {item.carne_nome}
-              {item.molhos_nomes?.length ? ` — ${item.molhos_nomes.join(", ")}` : ""}
-            </li>
-          ))}
+          {(pedido.pedido_itens ?? []).map((item) =>
+            item.tipo === "bebida" ? (
+              <li key={item.id}>
+                {item.quantidade}x {item.nome_item}
+              </li>
+            ) : (
+              <li key={item.id}>
+                {item.quantidade}x {item.pao_nome} — {item.carne_nome}
+                {item.molhos_nomes?.length ? ` — ${item.molhos_nomes.join(", ")}` : ""}
+              </li>
+            )
+          )}
         </ul>
 
         {telefoneParaAvisar && (

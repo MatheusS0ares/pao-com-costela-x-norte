@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, ArrowRight, Check, CheckCircle2, PartyPopper, X } from "lucide-react";
-import type { Cardapio, Carne, Configuracoes, FormaPagamento, ItemCarrinho, Molho, Pao, StatusPedido, TipoPedido } from "@/lib/types";
+import { ShoppingBag, ArrowRight, Check, CheckCircle2, PartyPopper, X, AlertTriangle } from "lucide-react";
+import type { Bebida, Cardapio, Carne, Configuracoes, FormaPagamento, ItemCarrinho, Molho, Pao, StatusPedido, TipoPedido } from "@/lib/types";
 import { resolverPreco, formatarPreco } from "@/lib/price";
 import { montarMensagemPedido, linkWhatsApp } from "@/lib/whatsapp";
 import { criarPedidoSite } from "@/lib/actions/pedidos";
@@ -22,6 +22,10 @@ const STATUS_PUBLICO: Record<StatusPedido, string> = {
   entregue: "Entregue",
   cancelado: "Cancelado",
 };
+
+function rotuloItemPedido(item: { tipo: string; pao_nome: string | null; nome_item: string | null }): string {
+  return item.tipo === "bebida" ? item.nome_item ?? "Bebida" : item.pao_nome ?? "Item";
+}
 
 export default function MontadorLanche({
   cardapio,
@@ -121,6 +125,7 @@ export default function MontadorLanche({
   function adicionarAoCarrinho() {
     if (!pao || !carne || precoAtual === null) return;
     const item: ItemCarrinho = {
+      tipo: "lanche",
       paoId: pao.id,
       paoNome: pao.nome,
       carneId: carne.id,
@@ -227,6 +232,18 @@ export default function MontadorLanche({
   function repetirPedido(pedidoAntigo: HistoricoCliente["pedidos"][number]) {
     const novosItens: ItemCarrinho[] = [];
     for (const item of pedidoAntigo.pedido_itens) {
+      if (item.tipo === "bebida") {
+        const bebidaItem = cardapio.bebidas.find((b) => b.nome === item.nome_item && b.disponivel);
+        if (!bebidaItem) continue;
+        novosItens.push({
+          tipo: "bebida",
+          bebidaId: bebidaItem.id,
+          bebidaNome: bebidaItem.nome,
+          quantidade: item.quantidade,
+          precoUnitario: bebidaItem.preco,
+        });
+        continue;
+      }
       const paoItem = cardapio.paes.find((p) => p.nome === item.pao_nome && p.disponivel);
       const carneItem = cardapio.carnes.find((c) => c.nome === item.carne_nome && c.disponivel);
       if (!paoItem || !carneItem) continue;
@@ -236,6 +253,7 @@ export default function MontadorLanche({
         .map((nomeMolho) => cardapio.molhos.find((m) => m.nome === nomeMolho && m.disponivel))
         .filter((m): m is Molho => Boolean(m));
       novosItens.push({
+        tipo: "lanche",
         paoId: paoItem.id,
         paoNome: paoItem.nome,
         carneId: carneItem.id,
@@ -272,6 +290,26 @@ export default function MontadorLanche({
     );
   }
 
+  // Bebida é item avulso: clicar de novo só soma quantidade na mesma
+  // linha do carrinho, em vez de criar uma linha repetida.
+  function adicionarBebida(bebida: Bebida) {
+    if (!bebida.disponivel) return;
+    setCarrinho((c) => {
+      const indice = c.findIndex((item) => item.tipo === "bebida" && item.bebidaId === bebida.id);
+      if (indice >= 0) {
+        return c.map((item, i) => (i === indice ? { ...item, quantidade: item.quantidade + 1 } : item));
+      }
+      const novoItem: ItemCarrinho = {
+        tipo: "bebida",
+        bebidaId: bebida.id,
+        bebidaNome: bebida.nome,
+        quantidade: 1,
+        precoUnitario: bebida.preco,
+      };
+      return [...c, novoItem];
+    });
+  }
+
   // Animation variants
   const fadeIn = {
     hidden: { opacity: 0, y: 15, filter: "blur(4px)" },
@@ -296,6 +334,15 @@ export default function MontadorLanche({
         fidelidadeAtiva={configuracoes.fidelidade_ativa}
       />
 
+      {!configuracoes.aberto_hoje ? (
+        <div className="vidro borda-fina rounded-3xl p-8 sm:p-10 text-center space-y-3">
+          <AlertTriangle className="mx-auto text-brasa" size={32} />
+          <h3 className="titulo-display text-2xl text-papel">Fechado hoje</h3>
+          <p className="text-papel/60 max-w-md mx-auto">
+            {configuracoes.mensagem_fechado?.trim() || "Não vamos abrir hoje — volta aqui em breve pra pedir seu lanche!"}
+          </p>
+        </div>
+      ) : (
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
       <div className="vidro rounded-3xl p-6 sm:p-10 space-y-10 relative overflow-hidden">
         {/* Ambient glow inside container */}
@@ -377,6 +424,10 @@ export default function MontadorLanche({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {cardapio.bebidas.length > 0 && (
+            <PassoBebidas bebidas={cardapio.bebidas} onAdicionar={adicionarBebida} />
+          )}
         </div>
       </div>
 
@@ -420,12 +471,18 @@ export default function MontadorLanche({
                   >
                     <div className="flex justify-between gap-2">
                       <div className="text-papel/80 font-light flex-1 min-w-0">
-                        <strong className="text-papel block mb-1 truncate">{item.paoNome}</strong>
-                        <span className="text-papel/60">
-                          {item.carneNome} {item.carnesComposicao ? `(${item.carnesComposicao.join(", ")})` : ""}
-                          {item.molhoNomes.length ? ` — ${item.molhoNomes.join(", ")}` : ""}
-                        </span>
-                        {item.observacao && <p className="text-xs text-lona mt-1 italic">&ldquo;{item.observacao}&rdquo;</p>}
+                        {item.tipo === "bebida" ? (
+                          <strong className="text-papel block truncate">{item.bebidaNome}</strong>
+                        ) : (
+                          <>
+                            <strong className="text-papel block mb-1 truncate">{item.paoNome}</strong>
+                            <span className="text-papel/60">
+                              {item.carneNome} {item.carnesComposicao ? `(${item.carnesComposicao.join(", ")})` : ""}
+                              {item.molhoNomes.length ? ` — ${item.molhoNomes.join(", ")}` : ""}
+                            </span>
+                            {item.observacao && <p className="text-xs text-lona mt-1 italic">&ldquo;{item.observacao}&rdquo;</p>}
+                          </>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -570,6 +627,7 @@ export default function MontadorLanche({
         )}
       </aside>
       </div>
+      )}
     </div>
   );
 }
@@ -612,7 +670,7 @@ function PainelHistorico({
         />
         <button
           type="button"
-          onClick={onBuscar}
+          onClick={() => onBuscar()}
           disabled={!telefoneValido(telefoneBusca) || buscando}
           className="alvo-toque px-6 rounded-xl bg-papel text-noite font-bold uppercase text-xs disabled:opacity-40 whitespace-nowrap"
         >
@@ -664,7 +722,7 @@ function PainelHistorico({
                           {STATUS_PUBLICO[p.status]}
                         </p>
                         <p className="text-sm text-papel/70 truncate">
-                          {p.pedido_itens.map((i) => `${i.quantidade}x ${i.pao_nome}`).join(", ")}
+                          {p.pedido_itens.map((i) => `${i.quantidade}x ${rotuloItemPedido(i)}`).join(", ")}
                         </p>
                         <p className="preco text-xs text-papel/50 mt-0.5">{formatarPreco(Number(p.total))}</p>
                       </div>
@@ -756,7 +814,7 @@ function AndamentoPedido({ pedido }: { pedido: HistoricoCliente["pedidos"][numbe
       )}
 
       <p className="text-xs text-papel/50 truncate">
-        {pedido.pedido_itens.map((i) => `${i.quantidade}x ${i.pao_nome}`).join(", ")}
+        {pedido.pedido_itens.map((i) => `${i.quantidade}x ${rotuloItemPedido(i)}`).join(", ")}
       </p>
     </div>
   );
@@ -974,6 +1032,38 @@ function PassoCarnes({
           </motion.div>
         )}
       </AnimatePresence>
+    </section>
+  );
+}
+
+function PassoBebidas({
+  bebidas,
+  onAdicionar,
+}: {
+  bebidas: Bebida[];
+  onAdicionar: (b: Bebida) => void;
+}) {
+  return (
+    <section>
+      <h3 className="titulo-display text-2xl mb-1 text-papel">Bebidas</h3>
+      <p className="text-sm text-papel/50 mb-5">Avulsas, direto no carrinho — toque pra adicionar.</p>
+      <div className="flex flex-wrap gap-3">
+        {bebidas.map((b) => (
+          <button
+            key={b.id}
+            type="button"
+            disabled={!b.disponivel}
+            onClick={() => onAdicionar(b)}
+            className={`alvo-toque px-6 rounded-full border flex items-center gap-3 transition-all duration-300 h-12 borda-fina text-papel/70 bg-noite-2/50 hover:bg-noite hover:border-papel/30 hover:text-papel ${
+              !b.disponivel ? "opacity-30 grayscale" : ""
+            }`}
+          >
+            <span className="font-medium">{b.nome}</span>
+            <span className="preco text-sm text-papel/50">{formatarPreco(b.preco)}</span>
+            {!b.disponivel && <span className="text-xs uppercase text-brasa ml-2 font-bold">esgotado</span>}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }

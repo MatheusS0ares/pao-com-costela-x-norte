@@ -8,6 +8,7 @@ import StatCard from "@/components/admin/StatCard";
 import TurnoControl from "@/components/admin/TurnoControl";
 import DisponibilidadeToggle from "@/components/admin/DisponibilidadeToggle";
 import ConfiguracaoToggle from "@/components/admin/ConfiguracaoToggle";
+import FechadoHojeControl from "@/components/admin/FechadoHojeControl";
 import AvisoSonoro from "@/components/admin/AvisoSonoro";
 
 export default async function HojePage() {
@@ -28,6 +29,7 @@ export default async function HojePage() {
     ...cardapio.paes.filter((p) => p.ativo).map((p) => ({ ...p, tabela: "paes" as const })),
     ...cardapio.carnes.filter((c) => c.ativo).map((c) => ({ ...c, tabela: "carnes" as const })),
     ...cardapio.molhos.filter((m) => m.ativo).map((m) => ({ ...m, tabela: "molhos" as const })),
+    ...cardapio.bebidas.filter((b) => b.ativo).map((b) => ({ ...b, tabela: "bebidas" as const })),
   ];
 
   return (
@@ -59,6 +61,10 @@ export default async function HojePage() {
       <div>
         <h2 className="font-bold uppercase text-sm text-admin-texto/60 mb-3">Configurações do site</h2>
         <ul className="card-admin divide-y divide-admin-borda overflow-hidden">
+          <FechadoHojeControl
+            abertoInicial={configuracoes.aberto_hoje}
+            mensagemInicial={configuracoes.mensagem_fechado}
+          />
           <ConfiguracaoToggle
             campo="entrega_ativa"
             valorInicial={configuracoes.entrega_ativa}

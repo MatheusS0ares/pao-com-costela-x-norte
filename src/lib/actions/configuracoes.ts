@@ -9,7 +9,12 @@ async function exigirAdmin() {
   if (!admin) throw new Error("NAO_AUTORIZADO");
 }
 
-export async function atualizarConfiguracoes(input: { entrega_ativa?: boolean; fidelidade_ativa?: boolean }) {
+export async function atualizarConfiguracoes(input: {
+  entrega_ativa?: boolean;
+  fidelidade_ativa?: boolean;
+  aberto_hoje?: boolean;
+  mensagem_fechado?: string | null;
+}) {
   await exigirAdmin();
   const supabase = await createClient();
   const { error } = await supabase.from("configuracoes").update(input).eq("id", ID_CONFIGURACOES);

@@ -16,17 +16,30 @@ function calcularTotais(itens: ItemCarrinho[], taxaEntrega = 0) {
 }
 
 function itensParaSnapshot(pedidoId: string, itens: ItemCarrinho[]) {
-  return itens.map((i) => ({
-    pedido_id: pedidoId,
-    pao_nome: i.paoNome,
-    carne_nome: i.carneNome,
-    carnes_composicao: i.carnesComposicao?.length ? i.carnesComposicao : null,
-    molhos_nomes: i.molhoNomes.length ? i.molhoNomes : null,
-    quantidade: i.quantidade,
-    preco_unitario: i.precoUnitario,
-    preco_total: i.precoUnitario * i.quantidade,
-    observacao: i.observacao || null,
-  }));
+  return itens.map((i) => {
+    if (i.tipo === "bebida") {
+      return {
+        pedido_id: pedidoId,
+        tipo: "bebida" as const,
+        nome_item: i.bebidaNome,
+        quantidade: i.quantidade,
+        preco_unitario: i.precoUnitario,
+        preco_total: i.precoUnitario * i.quantidade,
+      };
+    }
+    return {
+      pedido_id: pedidoId,
+      tipo: "lanche" as const,
+      pao_nome: i.paoNome,
+      carne_nome: i.carneNome,
+      carnes_composicao: i.carnesComposicao?.length ? i.carnesComposicao : null,
+      molhos_nomes: i.molhoNomes.length ? i.molhoNomes : null,
+      quantidade: i.quantidade,
+      preco_unitario: i.precoUnitario,
+      preco_total: i.precoUnitario * i.quantidade,
+      observacao: i.observacao || null,
+    };
+  });
 }
 
 /** Balcão: registrado pelo admin autenticado, pelo painel — o "substituto do caderno". */
