@@ -42,7 +42,7 @@ export default function Hero({ itensMarquee }: { itensMarquee: string[] }) {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
             className="block texto-brasa mt-4 sm:mt-6"
           >
-            COSTELA
+            CARNE
           </motion.span>
         </h1>
         

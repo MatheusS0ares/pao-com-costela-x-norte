@@ -1,42 +1,72 @@
+import Link from "next/link";
+import { Home, ShoppingBag, UtensilsCrossed, ClipboardList, Users, Wallet, UserCog } from "lucide-react";
+import type { ComponentType } from "react";
+
+type Passo = { titulo: string; passos: string[] };
+type Duvida = { pergunta: string; resposta: string };
 type Secao = {
+  id: string;
   titulo: string;
-  itens: { pergunta: string; resposta: string }[];
+  icone: ComponentType<{ size?: number; className?: string }>;
+  resumo: string;
+  comoFazer?: Passo[];
+  duvidas?: Duvida[];
 };
 
 const SECOES: Secao[] = [
   {
+    id: "hoje",
     titulo: "Hoje",
-    itens: [
+    icone: Home,
+    resumo: "Tela inicial: pedidos do dia, turno, disponibilidade do cardápio e configurações do site.",
+    comoFazer: [
       {
-        pergunta: "O que aparece nessa tela?",
-        resposta:
-          "É a tela inicial: quantos pedidos entraram hoje, quanto já vendeu, e o controle do turno (abrir no começo do dia, fechar no final).",
+        titulo: "Marcar que um item acabou",
+        passos: [
+          "Abra a aba \"Hoje\" (ícone de casa, primeiro da barra de baixo).",
+          "Desça até a lista \"Disponibilidade\".",
+          "Toque no botão verde \"Tem hoje\" ao lado do item que acabou.",
+          "Ele vira cinza \"Acabou\" — o cliente já para de ver essa opção no site, na hora.",
+        ],
       },
       {
-        pergunta: "Como marco que um item acabou?",
-        resposta:
-          "Na lista \"Disponibilidade\", toque no botão ao lado do item (pão, carne, molho ou bebida). \"Tem hoje\" vira \"Acabou\" — o cliente para de ver essa opção no site na hora, sem precisar mexer no cardápio inteiro.",
+        titulo: "Avisar que não vai abrir hoje",
+        passos: [
+          "Abra a aba \"Hoje\".",
+          "Desça até \"Configurações do site\".",
+          "Toque no botão verde \"Aberto\" pra virar \"Fechado\".",
+          "Escreva um motivo curto no campo que aparece (ex: \"Fechado hoje, voltamos amanhã!\").",
+          "Pronto — o site mostra esse aviso no lugar do pedido, ninguém consegue pedir.",
+          "No dia seguinte, não esqueça de tocar em \"Fechado\" de novo pra reabrir.",
+        ],
       },
-      {
-        pergunta: "Não vamos abrir hoje, o que eu faço?",
-        resposta:
-          "Em \"Configurações do site\", toque em \"Aberto\" pra virar \"Fechado\". Escreva um motivo curto pro cliente (ex: \"Fechado hoje, voltamos amanhã!\") — o site mostra esse aviso no lugar do pedido, e ninguém consegue pedir enquanto estiver desligado. Lembra de ligar de novo quando reabrir.",
-      },
+    ],
+    duvidas: [
       {
         pergunta: "Pra que serve \"Aceita entrega\" e \"Programa de fidelidade\"?",
         resposta:
-          "São liga/desliga do dia: se não tiver ninguém pra entregar hoje, desliga \"Aceita entrega\" e o site só vai oferecer retirada no local. \"Programa de fidelidade\" desliga o selo de prêmio (a cada 10 pedidos, 1 de graça) se um dia vocês quiserem pausar essa promoção.",
+          "São liga/desliga do dia. Se ninguém puder entregar hoje, desliga \"Aceita entrega\" — o site passa a oferecer só retirada. \"Programa de fidelidade\" desliga o selo de prêmio (a cada 10 pedidos, 1 de graça) se um dia vocês quiserem pausar essa promoção.",
       },
     ],
   },
   {
+    id: "novo-pedido",
     titulo: "Novo pedido",
-    itens: [
+    icone: ShoppingBag,
+    resumo: "Pra registrar um pedido que veio por telefone ou direto no balcão, sem passar pelo site.",
+    comoFazer: [
       {
-        pergunta: "Quando eu uso essa tela?",
-        resposta:
-          "Quando o pedido vem por telefone ou direto no balcão, sem passar pelo site — você monta o lanche igual o cliente monta lá (pão, carne, molho), escolhe a forma de pagamento e salva.",
+        titulo: "Registrar um pedido de balcão/telefone",
+        passos: [
+          "Abra a aba \"Novo\" (ícone de sacola).",
+          "Escolha o pão, depois a carne, depois os molhos — igual o cliente faz no site.",
+          "Se quiser, preenche nome e telefone do cliente (não é obrigatório).",
+          "Escolhe a forma de pagamento.",
+          "Toque em \"Salvar\" no final da tela.",
+        ],
       },
+    ],
+    duvidas: [
       {
         pergunta: "Preciso perguntar o telefone do cliente?",
         resposta:
@@ -50,18 +80,39 @@ const SECOES: Secao[] = [
     ],
   },
   {
+    id: "cardapio",
     titulo: "Cardápio",
-    itens: [
+    icone: UtensilsCrossed,
+    resumo: "Pra mudar preços, cadastrar bebidas e criar combos/promoções.",
+    comoFazer: [
       {
-        pergunta: "Como mudo o preço de um pão ou o ajuste de uma carne?",
-        resposta:
-          "Toque em cima do valor — ele vira um campo editável. Digite o novo preço e toque fora do campo (ou aperte Enter): salva sozinho, sem precisar de botão \"salvar\".",
+        titulo: "Mudar o preço de um pão ou o ajuste de uma carne",
+        passos: [
+          "Abra a aba \"Cardápio\".",
+          "Toque em cima do número do preço (ele vira um campo pra digitar).",
+          "Digite o novo valor.",
+          "Toque em qualquer outro lugar da tela (ou aperte Enter) — salva sozinho, sem botão \"salvar\".",
+        ],
       },
       {
-        pergunta: "Como cadastro uma bebida nova?",
-        resposta:
-          "Desce até a seção \"Bebidas\", preenche nome e preço no formulário \"Nova bebida\" e toca em \"Criar bebida\". Ela já aparece no site na hora. Pra tirar do cardápio, use \"Remover do cardápio\" ao lado dela (isso não apaga o histórico de pedidos antigos, só esconde ela de pedidos novos).",
+        titulo: "Cadastrar uma bebida nova",
+        passos: [
+          "Abra a aba \"Cardápio\" e desça até a seção \"Bebidas\".",
+          "No formulário \"Nova bebida\", preenche o nome e o preço.",
+          "Toque em \"Criar bebida\".",
+          "Ela já aparece no site na hora, pro cliente adicionar no carrinho.",
+        ],
       },
+      {
+        titulo: "Tirar uma bebida (ou outro item) do cardápio",
+        passos: [
+          "Ache o item na lista.",
+          "Toque em \"Remover do cardápio\" ao lado dele.",
+          "Isso só esconde ele de pedidos novos — não apaga o histórico de pedidos antigos que já tinham esse item.",
+        ],
+      },
+    ],
+    duvidas: [
       {
         pergunta: "O que é \"Preço especial\"?",
         resposta:
@@ -75,38 +126,56 @@ const SECOES: Secao[] = [
     ],
   },
   {
+    id: "pedidos",
     titulo: "Pedidos",
-    itens: [
+    icone: ClipboardList,
+    resumo: "Pra acompanhar os pedidos chegando e avançar o status de cada um.",
+    comoFazer: [
       {
-        pergunta: "Como acompanho os pedidos chegando?",
-        resposta:
-          "Essa tela atualiza sozinha a cada 15 segundos e toca um som diferente pra cada evento: um pedido novo chegando, um pedido que ficou pronto, e um que foi entregue. Vale deixar essa aba aberta no balcão o dia inteiro.",
+        titulo: "Avançar o status de um pedido (ex: de \"Aberto\" pra \"Preparando\")",
+        passos: [
+          "Abra a aba \"Pedidos\".",
+          "Ache o card do pedido.",
+          "Arraste o card inteiro pra direita com o dedo.",
+          "Ele avança sozinho na sequência: Aberto → Preparando → Pronto → Entregue.",
+        ],
       },
       {
-        pergunta: "Como avanço o status de um pedido?",
-        resposta:
-          "Arraste o card do pedido pra direita — ele avança sozinho na sequência: Aberto → Preparando → Pronto → Entregue. Pra cancelar, toque em \"cancelar\" no canto do card (ele pede confirmação antes).",
+        titulo: "Avisar o cliente que já pode vir buscar",
+        passos: [
+          "Avance o pedido até o status \"Pronto\" (só funciona pra pedidos de retirada).",
+          "Um botão verde \"Avisar cliente no WhatsApp\" aparece no card.",
+          "Toque nele — o WhatsApp abre sozinho com a mensagem já escrita.",
+          "É só tocar em enviar.",
+        ],
       },
       {
-        pergunta: "Como aviso o cliente que já pode vir buscar?",
+        titulo: "Cancelar um pedido",
+        passos: [
+          "No card do pedido, toque em \"cancelar\" (canto inferior).",
+          "Toque de novo em \"confirmar?\" pra ter certeza.",
+        ],
+      },
+    ],
+    duvidas: [
+      {
+        pergunta: "Por que às vezes toca um som sozinho?",
         resposta:
-          "Quando um pedido de retirada fica \"Pronto\", aparece um botão verde \"Avisar cliente no WhatsApp\" no card — toque nele, o WhatsApp abre com a mensagem pronta, é só enviar.",
+          "A tela de Pedidos atualiza sozinha a cada 15 segundos e toca um som diferente pra cada evento: um agudo quando chega pedido novo, um \"ding\" quando um fica pronto, e um mais grave quando é entregue. Vale deixar essa aba aberta no balcão o dia inteiro pra ouvir sem precisar ficar olhando.",
       },
       {
-        pergunta: "O que é o selo de prêmio no card do pedido?",
+        pergunta: "O que é o selo amarelo de prêmio no card do pedido?",
         resposta:
-          "Quando o cliente já completou 10 pedidos (ou mais) e tem prêmio disponível, aparece um botão amarelo avisando. Toque nele na hora de entregar o prêmio pra marcar como usado — assim ele não aparece disponível de novo até completar outros 10.",
+          "Aparece quando o cliente já completou 10 pedidos (ou mais) e tem prêmio disponível. Toque nele na hora de entregar o prêmio pra marcar como usado — assim ele não aparece disponível de novo até completar outros 10.",
       },
     ],
   },
   {
+    id: "clientes",
     titulo: "Clientes",
-    itens: [
-      {
-        pergunta: "Pra que serve essa tela?",
-        resposta:
-          "Mostra todo mundo que já se identificou com telefone em algum pedido (pelo site ou pelo balcão), separado em duas abas.",
-      },
+    icone: Users,
+    resumo: "Mostra todo mundo que já se identificou com telefone em algum pedido.",
+    duvidas: [
       {
         pergunta: "O que tem na aba \"Fidelização\"?",
         resposta:
@@ -120,13 +189,21 @@ const SECOES: Secao[] = [
     ],
   },
   {
+    id: "fechamento",
     titulo: "Fechamento",
-    itens: [
+    icone: Wallet,
+    resumo: "Pra abrir/fechar o turno e ver o resumo de vendas do dia.",
+    comoFazer: [
       {
-        pergunta: "Quando eu abro e fecho o turno?",
-        resposta:
-          "Abra no começo do expediente (\"Abrir turno\" na tela Hoje ou Fechamento) e feche no final do dia. Isso separa as vendas de um dia do outro nos relatórios.",
+        titulo: "Abrir e fechar o turno",
+        passos: [
+          "No começo do expediente, abra \"Hoje\" ou \"Fechamento\" e toque em \"Abrir turno\".",
+          "No fim do dia, volte na mesma tela e toque em \"Fechar turno\".",
+          "Isso separa as vendas de um dia do outro nos relatórios.",
+        ],
       },
+    ],
+    duvidas: [
       {
         pergunta: "O que aparece no resumo do turno?",
         resposta:
@@ -135,13 +212,22 @@ const SECOES: Secao[] = [
     ],
   },
   {
+    id: "conta",
     titulo: "Conta",
-    itens: [
+    icone: UserCog,
+    resumo: "Trocar sua senha e ver quem mais tem acesso ao painel.",
+    comoFazer: [
       {
-        pergunta: "Preciso pedir o link mágico toda vez que for entrar?",
-        resposta:
-          "Não precisa — em \"Minha conta\", defina uma senha uma vez. Depois disso, é só entrar com e-mail e senha, sem esperar e-mail nenhum.",
+        titulo: "Entrar direto com senha, sem esperar e-mail",
+        passos: [
+          "Abra \"Minha conta\" (link com seu nome, no topo da tela).",
+          "Digite uma senha nova (mínimo 6 caracteres) e confirme.",
+          "Toque em \"Salvar senha\".",
+          "Da próxima vez, na tela de login, escolhe a aba \"Senha\" e entra direto.",
+        ],
       },
+    ],
+    duvidas: [
       {
         pergunta: "O que é a \"Zona de risco\"?",
         resposta:
@@ -157,23 +243,61 @@ export default function AjudaPage() {
       <div>
         <h1 className="text-xl font-bold mb-1">Como usar o painel</h1>
         <p className="text-sm text-admin-texto/60">
-          Um guia rápido pra cada tela — pode voltar aqui sempre que tiver dúvida.
+          Um guia rápido pra cada tela, com o passo a passo de tudo que você mais vai fazer no
+          dia a dia. Pode voltar aqui sempre que tiver dúvida.
         </p>
       </div>
 
-      {SECOES.map((secao) => (
-        <section key={secao.titulo} className="space-y-3">
-          <h2 className="font-bold uppercase text-sm text-admin-texto/60">{secao.titulo}</h2>
-          <ul className="card-admin divide-y divide-admin-borda overflow-hidden">
-            {secao.itens.map((item) => (
-              <li key={item.pergunta} className="p-4 space-y-1.5">
-                <p className="font-bold text-sm">{item.pergunta}</p>
-                <p className="text-sm text-admin-texto/70">{item.resposta}</p>
-              </li>
+      <nav className="grid grid-cols-3 sm:grid-cols-4 gap-2" aria-label="Atalhos das seções">
+        {SECOES.map((secao) => {
+          const Icone = secao.icone;
+          return (
+            <Link
+              key={secao.id}
+              href={`#${secao.id}`}
+              className="alvo-toque card-admin flex flex-col items-center justify-center gap-1.5 py-4 text-center hover:border-brasa transition-colors"
+            >
+              <Icone size={20} />
+              <span className="text-xs font-bold uppercase">{secao.titulo}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {SECOES.map((secao) => {
+        const Icone = secao.icone;
+        return (
+          <section key={secao.id} id={secao.id} className="space-y-3 scroll-mt-20">
+            <div className="flex items-center gap-2">
+              <Icone size={18} className="text-admin-texto/60" />
+              <h2 className="font-bold uppercase text-sm text-admin-texto/60">{secao.titulo}</h2>
+            </div>
+            <p className="text-sm text-admin-texto/70">{secao.resumo}</p>
+
+            {secao.comoFazer?.map((passo) => (
+              <div key={passo.titulo} className="card-admin p-4 space-y-2">
+                <p className="font-bold text-sm">{passo.titulo}</p>
+                <ol className="space-y-1.5 text-sm text-admin-texto/70 list-decimal list-inside">
+                  {passo.passos.map((p, i) => (
+                    <li key={i}>{p}</li>
+                  ))}
+                </ol>
+              </div>
             ))}
-          </ul>
-        </section>
-      ))}
+
+            {secao.duvidas && secao.duvidas.length > 0 && (
+              <ul className="card-admin divide-y divide-admin-borda overflow-hidden">
+                {secao.duvidas.map((d) => (
+                  <li key={d.pergunta} className="p-4 space-y-1.5">
+                    <p className="font-bold text-sm">{d.pergunta}</p>
+                    <p className="text-sm text-admin-texto/70">{d.resposta}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      })}
 
       <div className="card-admin p-4">
         <p className="text-sm text-admin-texto/70">
