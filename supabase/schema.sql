@@ -44,10 +44,12 @@ create schema xnorte;
 -- após o primeiro login: insert into xnorte.admins (id, nome) values ('<uuid do auth.users>', 'Nome').
 
 create table xnorte.admins (
-  id           uuid primary key references auth.users(id) on delete cascade,
-  nome         text not null,
-  super_admin  boolean not null default false, -- só o dono do sistema, não os admins do cliente
-  criado_em    timestamptz not null default now()
+  id                uuid primary key references auth.users(id) on delete cascade,
+  nome              text not null,
+  super_admin       boolean not null default false, -- só o dono do sistema, não os admins do cliente
+  visto_em          timestamptz, -- heartbeat: atualizado a cada ~30s com o painel aberto ("online agora")
+  ultimo_logout_em  timestamptz,
+  criado_em         timestamptz not null default now()
 );
 
 create or replace function xnorte.is_admin()
