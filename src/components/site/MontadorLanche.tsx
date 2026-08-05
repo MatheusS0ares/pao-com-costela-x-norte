@@ -52,6 +52,9 @@ export default function MontadorLanche({
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pedidoDuplicado, setPedidoDuplicado] = useState(false);
+  const [camposInvalidos, setCamposInvalidos] = useState<{ nome?: boolean; telefone?: boolean; endereco?: boolean }>({});
+  const [pedidoEnviado, setPedidoEnviado] = useState(false);
+  const [linkWhatsappPosPedido, setLinkWhatsappPosPedido] = useState<string | null>(null);
 
   const [telefoneBusca, setTelefoneBusca] = useState("");
   const [buscando, setBuscando] = useState(false);
@@ -59,6 +62,7 @@ export default function MontadorLanche({
   const [historico, setHistorico] = useState<HistoricoCliente | null>(null);
   const [mensagemCarrinho, setMensagemCarrinho] = useState<string | null>(null);
   const carrinhoRef = useRef<HTMLDivElement>(null);
+  const historicoRef = useRef<HTMLDivElement>(null);
 
   // "Pequeno acesso" do cliente: se o navegador já lembra ele de uma
   // visita/pedido anterior, reconhece sozinho — sem botão de login, sem
@@ -138,6 +142,7 @@ export default function MontadorLanche({
       observacao: observacaoItem.trim() || undefined,
     };
     setCarrinho((c) => [...c, item]);
+    setPedidoEnviado(false);
     setPao(null);
     setCarne(null);
     setMistoEscolhas([]);
@@ -149,12 +154,6 @@ export default function MontadorLanche({
 
   const subtotal = carrinho.reduce((s, i) => s + i.precoUnitario * i.quantidade, 0);
 
-  const podeEnviar =
-    carrinho.length > 0 &&
-    nome.trim().length > 0 &&
-    telefoneValido(telefone) &&
-    (tipo !== "entrega" || endereco.trim().length > 0);
-
   function linkFallback() {
     return linkWhatsApp(
       siteConfig.telefoneWhatsApp,
@@ -162,11 +161,24 @@ export default function MontadorLanche({
     );
   }
 
+  // Valida na hora de tentar enviar, em vez de só desabilitar o botão sem
+  // dizer o porquê — aponta exatamente qual campo falta preencher.
+  function validarCampos(): boolean {
+    const invalidos: { nome?: boolean; telefone?: boolean; endereco?: boolean } = {};
+    if (!nome.trim()) invalidos.nome = true;
+    if (!telefoneValido(telefone)) invalidos.telefone = true;
+    if (tipo === "entrega" && !endereco.trim()) invalidos.endereco = true;
+    setCamposInvalidos(invalidos);
+    return Object.keys(invalidos).length === 0;
+  }
+
   async function enviarPedido() {
-    if (!podeEnviar) return;
+    if (carrinho.length === 0 || enviando) return;
+    if (!validarCampos()) return;
     setEnviando(true);
     setErro(null);
     setPedidoDuplicado(false);
+    const linkWhats = linkFallback();
     try {
       await criarPedidoSite({
         itens: carrinho,
@@ -178,7 +190,15 @@ export default function MontadorLanche({
         observacao: observacaoPedido,
       });
       atualizarClienteLocal({ nome, telefone, endereco: tipo === "entrega" ? endereco : undefined });
-      window.location.href = linkFallback();
+      // Fica na própria página, mostrando o acompanhamento — só manda pro
+      // WhatsApp se o cliente confirmar, e numa aba nova (não substitui o
+      // site, que é onde o acompanhamento do pedido aparece).
+      setLinkWhatsappPosPedido(linkWhats);
+      setPedidoEnviado(true);
+      setCarrinho([]);
+      setObservacaoPedido("");
+      await buscarHistorico(telefone);
+      historicoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {
       if (err instanceof Error && err.message === "PEDIDO_DUPLICADO") {
         setPedidoDuplicado(true);
@@ -294,6 +314,7 @@ export default function MontadorLanche({
   // linha do carrinho, em vez de criar uma linha repetida.
   function adicionarBebida(bebida: Bebida) {
     if (!bebida.disponivel) return;
+    setPedidoEnviado(false);
     setCarrinho((c) => {
       const indice = c.findIndex((item) => item.tipo === "bebida" && item.bebidaId === bebida.id);
       if (indice >= 0) {
@@ -310,6 +331,24 @@ export default function MontadorLanche({
     });
   }
 
+  function removerUmaBebida(bebidaId: string) {
+    setCarrinho((c) => {
+      const indice = c.findIndex((item) => item.tipo === "bebida" && item.bebidaId === bebidaId);
+      if (indice < 0) return c;
+      const item = c[indice];
+      if (item.quantidade <= 1) return c.filter((_, i) => i !== indice);
+      return c.map((it, i) => (i === indice ? { ...it, quantidade: it.quantidade - 1 } : it));
+    });
+  }
+
+  const quantidadesBebidas = useMemo(() => {
+    const mapa = new Map<string, number>();
+    for (const item of carrinho) {
+      if (item.tipo === "bebida") mapa.set(item.bebidaId, item.quantidade);
+    }
+    return mapa;
+  }, [carrinho]);
+
   // Animation variants
   const fadeIn = {
     hidden: { opacity: 0, y: 15, filter: "blur(4px)" },
@@ -319,20 +358,22 @@ export default function MontadorLanche({
 
   return (
     <div className="space-y-6">
-      <PainelHistorico
-        telefoneBusca={telefoneBusca}
-        onMudarTelefoneBusca={(v) => {
-          setTelefoneBusca(v);
-          setHistorico(null);
-          setBuscaFeita(false);
-        }}
-        buscando={buscando}
-        buscaFeita={buscaFeita}
-        historico={historico}
-        onBuscar={buscarHistorico}
-        onRepetir={repetirPedido}
-        fidelidadeAtiva={configuracoes.fidelidade_ativa}
-      />
+      <div ref={historicoRef}>
+        <PainelHistorico
+          telefoneBusca={telefoneBusca}
+          onMudarTelefoneBusca={(v) => {
+            setTelefoneBusca(v);
+            setHistorico(null);
+            setBuscaFeita(false);
+          }}
+          buscando={buscando}
+          buscaFeita={buscaFeita}
+          historico={historico}
+          onBuscar={buscarHistorico}
+          onRepetir={repetirPedido}
+          fidelidadeAtiva={configuracoes.fidelidade_ativa}
+        />
+      </div>
 
       {!configuracoes.aberto_hoje ? (
         <div className="vidro borda-fina rounded-3xl p-8 sm:p-10 text-center space-y-3">
@@ -426,7 +467,12 @@ export default function MontadorLanche({
           </AnimatePresence>
 
           {cardapio.bebidas.length > 0 && (
-            <PassoBebidas bebidas={cardapio.bebidas} onAdicionar={adicionarBebida} />
+            <PassoBebidas
+              bebidas={cardapio.bebidas}
+              quantidades={quantidadesBebidas}
+              onAdicionar={adicionarBebida}
+              onRemover={removerUmaBebida}
+            />
           )}
         </div>
       </div>
@@ -454,10 +500,32 @@ export default function MontadorLanche({
 
         <div className="relative z-10 flex-1">
           {carrinho.length === 0 ? (
-            <div className="h-40 flex flex-col items-center justify-center text-center text-papel/30 space-y-3">
-              <ShoppingBag size={48} strokeWidth={1} />
-              <p className="text-sm">Monte seu lanche ao lado.</p>
-            </div>
+            pedidoEnviado ? (
+              <div className="flex flex-col items-center justify-center text-center space-y-4 py-6">
+                <PartyPopper className="text-lona" size={40} />
+                <div>
+                  <p className="font-bold text-papel">Pedido enviado!</p>
+                  <p className="text-sm text-papel/60 mt-1">
+                    Acompanhe o andamento bem ali em cima, em &ldquo;Já pediu antes?&rdquo;.
+                  </p>
+                </div>
+                {linkWhatsappPosPedido && (
+                  <a
+                    href={linkWhatsappPosPedido}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="alvo-toque inline-flex items-center justify-center gap-2 px-5 rounded-xl border border-lona text-lona font-bold uppercase text-xs h-11"
+                  >
+                    Avisar também no WhatsApp
+                  </a>
+                )}
+              </div>
+            ) : (
+              <div className="h-40 flex flex-col items-center justify-center text-center text-papel/30 space-y-3">
+                <ShoppingBag size={48} strokeWidth={1} />
+                <p className="text-sm">Monte seu lanche ao lado.</p>
+              </div>
+            )
           ) : (
             <ul className="space-y-4 text-sm">
               <AnimatePresence>
@@ -530,19 +598,37 @@ export default function MontadorLanche({
             <PrecoAnimado valor={subtotal} />
 
             <div className="space-y-3">
-              <input
-                className="alvo-toque w-full bg-noite-2/50 borda-fina focus:border-brasa rounded-xl px-4 text-papel placeholder:text-fumaca text-sm transition-colors"
-                placeholder="Seu nome"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-              />
-              <input
-                className="alvo-toque w-full bg-noite-2/50 borda-fina focus:border-brasa rounded-xl px-4 text-papel placeholder:text-fumaca text-sm transition-colors"
-                placeholder="Seu telefone (com DDD)"
-                inputMode="tel"
-                value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-              />
+              <div>
+                <input
+                  className="alvo-toque w-full bg-noite-2/50 borda-fina focus:border-brasa rounded-xl px-4 text-papel placeholder:text-fumaca text-sm transition-colors"
+                  style={camposInvalidos.nome ? { borderColor: "var(--color-brasa)" } : undefined}
+                  placeholder="Seu nome *"
+                  value={nome}
+                  onChange={(e) => {
+                    setNome(e.target.value);
+                    setCamposInvalidos((c) => ({ ...c, nome: false }));
+                  }}
+                />
+                {camposInvalidos.nome && (
+                  <p className="text-xs text-brasa mt-1 px-1">Preenche seu nome pra continuar.</p>
+                )}
+              </div>
+              <div>
+                <input
+                  className="alvo-toque w-full bg-noite-2/50 borda-fina focus:border-brasa rounded-xl px-4 text-papel placeholder:text-fumaca text-sm transition-colors"
+                  style={camposInvalidos.telefone ? { borderColor: "var(--color-brasa)" } : undefined}
+                  placeholder="Seu telefone (com DDD) *"
+                  inputMode="tel"
+                  value={telefone}
+                  onChange={(e) => {
+                    setTelefone(e.target.value);
+                    setCamposInvalidos((c) => ({ ...c, telefone: false }));
+                  }}
+                />
+                {camposInvalidos.telefone && (
+                  <p className="text-xs text-brasa mt-1 px-1">Telefone com DDD, só números (ex: 61999998888).</p>
+                )}
+              </div>
               {configuracoes.entrega_ativa ? (
                 <div className="flex gap-2 text-sm bg-noite-2/50 p-1 rounded-xl borda-fina">
                   {(["retirada", "entrega"] as const).map((t) => (
@@ -567,10 +653,17 @@ export default function MontadorLanche({
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
                     <input
                       className="alvo-toque w-full bg-noite-2/50 borda-fina focus:border-brasa rounded-xl px-4 text-papel placeholder:text-fumaca text-sm transition-colors"
-                      placeholder="Endereço completo"
+                      style={camposInvalidos.endereco ? { borderColor: "var(--color-brasa)" } : undefined}
+                      placeholder="Endereço completo *"
                       value={endereco}
-                      onChange={(e) => setEndereco(e.target.value)}
+                      onChange={(e) => {
+                        setEndereco(e.target.value);
+                        setCamposInvalidos((c) => ({ ...c, endereco: false }));
+                      }}
                     />
+                    {camposInvalidos.endereco && (
+                      <p className="text-xs text-brasa mt-1 px-1">Precisa do endereço completo pra entrega.</p>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -604,6 +697,8 @@ export default function MontadorLanche({
                 {!pedidoDuplicado && (
                   <a
                     href={linkFallback()}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="alvo-toque flex items-center justify-center w-full rounded-lg bg-brasa/20 text-brasa-2 font-bold uppercase tracking-wide text-xs"
                   >
                     Tentar direto pelo WhatsApp
@@ -614,7 +709,7 @@ export default function MontadorLanche({
 
             <button
               type="button"
-              disabled={!podeEnviar || enviando}
+              disabled={enviando}
               onClick={enviarPedido}
               className="alvo-toque group w-full rounded-xl bg-brasa text-noite font-bold uppercase tracking-wide disabled:opacity-40 shadow-[0_0_30px_-8px_var(--color-brasa)] hover:shadow-[0_0_44px_-4px_var(--color-brasa)] transition-all flex items-center justify-center gap-2 overflow-hidden relative"
             >
@@ -1038,31 +1133,74 @@ function PassoCarnes({
 
 function PassoBebidas({
   bebidas,
+  quantidades,
   onAdicionar,
+  onRemover,
 }: {
   bebidas: Bebida[];
+  quantidades: Map<string, number>;
   onAdicionar: (b: Bebida) => void;
+  onRemover: (bebidaId: string) => void;
 }) {
   return (
     <section>
       <h3 className="titulo-display text-2xl mb-1 text-papel">Bebidas</h3>
       <p className="text-sm text-papel/50 mb-5">Avulsas, direto no carrinho — toque pra adicionar.</p>
       <div className="flex flex-wrap gap-3">
-        {bebidas.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            disabled={!b.disponivel}
-            onClick={() => onAdicionar(b)}
-            className={`alvo-toque px-6 rounded-full border flex items-center gap-3 transition-all duration-300 h-12 borda-fina text-papel/70 bg-noite-2/50 hover:bg-noite hover:border-papel/30 hover:text-papel ${
-              !b.disponivel ? "opacity-30 grayscale" : ""
-            }`}
-          >
-            <span className="font-medium">{b.nome}</span>
-            <span className="preco text-sm text-papel/50">{formatarPreco(b.preco)}</span>
-            {!b.disponivel && <span className="text-xs uppercase text-brasa ml-2 font-bold">esgotado</span>}
-          </button>
-        ))}
+        {bebidas.map((b) => {
+          const qtd = quantidades.get(b.id) ?? 0;
+
+          if (qtd === 0) {
+            return (
+              <motion.button
+                key={b.id}
+                type="button"
+                layout
+                whileTap={{ scale: 0.95 }}
+                disabled={!b.disponivel}
+                onClick={() => onAdicionar(b)}
+                className={`alvo-toque px-6 rounded-full border flex items-center gap-3 transition-all duration-300 h-12 borda-fina text-papel/70 bg-noite-2/50 hover:bg-noite hover:border-papel/30 hover:text-papel ${
+                  !b.disponivel ? "opacity-30 grayscale" : ""
+                }`}
+              >
+                <span className="font-medium">{b.nome}</span>
+                <span className="preco text-sm text-papel/50">{formatarPreco(b.preco)}</span>
+                {!b.disponivel && <span className="text-xs uppercase text-brasa ml-2 font-bold">esgotado</span>}
+              </motion.button>
+            );
+          }
+
+          return (
+            <motion.div
+              key={b.id}
+              layout
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex items-center gap-3 pl-6 pr-2 rounded-full border border-brasa bg-brasa/10 h-12 shadow-[0_0_20px_-5px_var(--color-brasa)]"
+            >
+              <span className="font-medium text-papel">{b.nome}</span>
+              <div className="flex items-center gap-1 bg-noite-2 rounded-full p-1 borda-fina">
+                <button
+                  type="button"
+                  onClick={() => onRemover(b.id)}
+                  aria-label={`Remover ${b.nome}`}
+                  className="alvo-toque w-7 h-7 rounded-full hover:bg-papel/10 font-bold transition-colors flex items-center justify-center text-papel"
+                >
+                  −
+                </button>
+                <span className="preco text-sm w-5 text-center text-papel">{qtd}</span>
+                <button
+                  type="button"
+                  onClick={() => onAdicionar(b)}
+                  aria-label={`Adicionar mais ${b.nome}`}
+                  className="alvo-toque w-7 h-7 rounded-full hover:bg-papel/10 font-bold transition-colors flex items-center justify-center text-papel"
+                >
+                  +
+                </button>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
     </section>
   );
