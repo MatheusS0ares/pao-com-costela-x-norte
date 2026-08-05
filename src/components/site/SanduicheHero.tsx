@@ -24,7 +24,7 @@ export default function SanduicheHero() {
         >
           <Image
             src="/fotos-landing/IMG_3467.jpeg"
-            alt="Pão com costela X Norte, servido com vinagrete"
+            alt="Pão com carne da X Norte, servido com vinagrete"
             fill
             priority
             sizes="(max-width: 640px) 300px, 420px"
@@ -42,7 +42,7 @@ export default function SanduicheHero() {
         >
           <Image
             src="/fotos-landing/IMG_3465.jpeg"
-            alt="Pão com costela e queijo derretido"
+            alt="Pão com carne e queijo derretido"
             fill
             sizes="112px"
             className="object-cover"
@@ -58,7 +58,7 @@ export default function SanduicheHero() {
         >
           <Image
             src="/fotos-landing/IMG_3468.jpeg"
-            alt="Pão com costela e vinagrete fresco"
+            alt="Pão com carne e vinagrete fresco"
             fill
             sizes="96px"
             className="object-cover"

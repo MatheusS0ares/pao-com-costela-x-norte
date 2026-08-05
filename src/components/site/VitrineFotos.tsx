@@ -3,7 +3,7 @@ import ScrollReveal from "./ScrollReveal";
 
 const FOTOS = [
   { src: "/fotos-landing/IMG_3466.jpeg", alt: "Combo X Norte com batata chips e refrigerante", span: "sm:col-span-2 sm:row-span-2" },
-  { src: "/fotos-landing/pao-frances.jpg", alt: "Pão com costela da X Norte", span: "sm:col-span-2 sm:row-span-1" },
+  { src: "/fotos-landing/pao-frances.jpg", alt: "Pão com carne da X Norte", span: "sm:col-span-2 sm:row-span-1" },
   { src: "/fotos-landing/acao-preparo.jpeg", alt: "Carne sendo preparada na chapa", span: "sm:col-span-2 sm:row-span-1" },
 ];
 

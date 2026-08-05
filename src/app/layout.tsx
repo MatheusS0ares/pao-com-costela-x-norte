@@ -32,12 +32,12 @@ const urlBase = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pao-com-costela-x-n
 export const metadata: Metadata = {
   metadataBase: new URL(urlBase),
   title: {
-    default: `${siteConfig.nome} — Pão com Costela no Setor Norte`,
+    default: `${siteConfig.nome} — Pão com Carne no Setor Norte`,
     template: `%s — ${siteConfig.nome}`,
   },
   description: `${siteConfig.descricaoCurta}. Monte seu lanche e peça pelo WhatsApp — ${siteConfig.referencia}.`,
   openGraph: {
-    title: `${siteConfig.nome} — Pão com Costela no Setor Norte`,
+    title: `${siteConfig.nome} — Pão com Carne no Setor Norte`,
     description: siteConfig.descricaoCurta,
     locale: "pt_BR",
     type: "website",
@@ -52,7 +52,7 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "FoodEstablishment",
   name: siteConfig.nome,
-  servesCuisine: "Lanches, pão com costela",
+  servesCuisine: "Lanches, pão com carne",
   priceRange: "$",
   telephone: `+${siteConfig.telefoneWhatsApp}`,
   address: {

@@ -4,7 +4,7 @@
 
 export const siteConfig = {
   nome: "X Norte", // como o cliente já é chamado na rua — nome do negócio a confirmar
-  descricaoCurta: "Pão com costela no Setor Norte",
+  descricaoCurta: "Pão com carne no Setor Norte",
   cidade: "Setor Norte",
   referencia: "em frente à Padaria X Norte, quadra X, Setor Norte",
 
