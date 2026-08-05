@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { registrarLogout } from "@/lib/actions/admins";
 
 export default function LogoutButton() {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function LogoutButton() {
 
   async function sair() {
     setSaindo(true);
+    await registrarLogout();
     const supabase = createClient();
     await supabase.auth.signOut();
     router.replace("/admin/login");
